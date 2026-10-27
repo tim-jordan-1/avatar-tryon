@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cloth Spike</title>
+<style>
+  :root { --bg: #f4f2ee; --panel: #fff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e3e0da; --accent: #2f5d50; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151618; --panel: #1e1f22; --ink: #ececee; --muted: #9a9aa0; --line: #2e2f33; --accent: #7fc3a9; --bad: #ff8a80; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 16px; }
+  main { position: relative; min-height: 60vh; }
+  #view { position: absolute; inset: 0; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+  p.note { color: var(--muted); margin: 0 0 8px; font-size: 12px; }
+  label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 2px; margin-bottom: 8px; }
+  select, button { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  td { padding: 3px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  td:first-child { text-align: left; color: var(--muted); }
+  .views { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; }
+  .views button { background: var(--panel); }
+  #status { color: var(--muted); font-size: 12px; }
+  #status.bad { color: var(--bad); }
+  @media (max-width: 760px) { body { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; } main { order: -1; height: 60vh; } aside { border-right: 0; } }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<aside>
+  <h1>Cloth Spike</h1>
+  <p class="note">One t-shirt on the measured avatar, simulated as a JoltPhysics.js soft body. The avatar is a default man (178 cm, chest 100 cm) on the MakeHuman body.</p>
+
+  <label>Fabric
+    <select id="fabric">
+      <option value="jersey">Cotton jersey, 180 gsm</option>
+      <option value="rib">Cotton-elastane rib, 95/5, 220 gsm</option>
+      <option value="denim">Cotton denim, 12 oz</option>
+    </select>
+  </label>
+  <label>Size (garment chest)
+    <select id="size"></select>
+  </label>
+  <label>Motion
+    <select id="anim">
+      <option value="idle">Idle</option>
+      <option value="walk" selected>Walk</option>
+      <option value="turn">Turn 360°</option>
+      <option value="armsUp">Arms up</option><option value="tryon">Try-on (4 s, then idle)</option>
+    </select>
+  </label>
+  <button type="button" id="reset">Reset cloth</button>
+
+  <h2>Simulation</h2>
+  <table id="stats"><tbody></tbody></table>
+  <h2>Fabric parameters (estimate)</h2>
+  <table id="params"><tbody></tbody></table>
+  <p id="status"></p>
+</aside>
+<main>
+  <div id="view"></div>
+  <div class="views"><button data-view="front">Front</button><button data-view="side">Side</button><button data-view="back">Back</button><button data-view="three">¾</button></div>
+</main>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

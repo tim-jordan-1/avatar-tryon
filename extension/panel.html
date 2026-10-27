@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar Try-On</title>
+<style>
+  /* Light by default, dark from the system setting: the same switch as before. The dark palette is Mockup A's studio. */
+  :root {
+    color-scheme: light;
+    --bg: #e9e7e2;
+    --spot: #fbfaf7;
+    --spot-mid: rgba(251, 250, 247, 0.55);
+    --stage-top: #efede9;
+    --glass: rgba(255, 255, 255, 0.62);
+    --glass-line: rgba(28, 29, 33, 0.08);
+    --glass-shadow: 0 8px 24px rgba(40, 36, 28, 0.10);
+    --sheet: #fbfaf8;
+    --sheet-shadow: 0 -1px 0 rgba(28, 29, 33, 0.06), 0 -18px 40px rgba(40, 36, 28, 0.12);
+    --surface: #f0eee9;
+    --surface-hi: #ffffff;
+    --line: rgba(28, 29, 33, 0.09);
+    --line-hi: rgba(28, 29, 33, 0.22);
+    --hover: rgba(28, 29, 33, 0.05);
+    --pressed: rgba(28, 29, 33, 0.09);
+    --track: rgba(28, 29, 33, 0.08);
+    --band: rgba(28, 29, 33, 0.18);
+    --ink: #1c1d21;
+    --muted: #5f6168;
+    --faint: #6f727a;
+    --primary: #1c1d21;
+    --primary-hover: #000;
+    --on-primary: #fbfaf8;
+    --good: #2e8a64;
+    --snug: #b97a0e;
+    --tight: #c2412a;
+    --loose: #3768c4;
+    --focus: #2f5d50;
+    --tab-shadow: 0 1px 2px rgba(28, 29, 33, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #0c0d10;
+      --spot: #2b2f39;
+      --spot-mid: rgba(43, 47, 57, 0.35);
+      --stage-top: #121419;
+      --glass: rgba(20, 22, 28, 0.56);
+      --glass-line: rgba(255, 255, 255, 0.10);
+      --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+      --sheet: #121318;
+      --sheet-shadow: 0 -1px 0 rgba(255, 255, 255, 0.07), 0 -18px 40px rgba(0, 0, 0, 0.45);
+      --surface: #1b1d23;
+      --surface-hi: #24262e;
+      --line: rgba(255, 255, 255, 0.08);
+      --line-hi: rgba(255, 255, 255, 0.20);
+      --hover: rgba(255, 255, 255, 0.06);
+      --pressed: rgba(243, 239, 230, 0.16);
+      --track: rgba(255, 255, 255, 0.08);
+      --band: rgba(243, 239, 230, 0.22);
+      --ink: #f3f1ec;
+      --muted: #a5a9b3;
+      --faint: #858a95;
+      --primary: #f3efe6;
+      --primary-hover: #fff;
+      --on-primary: #111214;
+      --good: #5cc29a;
+      --snug: #f2b84b;
+      --tight: #ef6a4a;
+      --loose: #74a2f2;
+      --focus: #9fe3c6;
+      --tab-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root {
+    --peek: clamp(300px, 44vh, 380px); /* the same rule as SNAP() in panel.js, so the first paint does not animate */
+    --stage-gap: 66px; /* room for the view switcher between the avatar and the sheet */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; background: var(--bg); color: var(--ink);
+    font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; caret-color: var(--focus); accent-color: var(--good);
+  }
+  ::selection { background: color-mix(in srgb, var(--focus) 30%, transparent); color: var(--ink); }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+  svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- stage ---------- */
+  .stage {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 46% at 50% 36%, var(--spot) 0%, var(--spot-mid) 55%, transparent 80%),
+      linear-gradient(180deg, var(--stage-top) 0%, var(--bg) 100%);
+  }
+  /* The three.js canvas fills #view. It ends above the view switcher, so the switcher never covers the avatar. */
+  #view { position: absolute; top: 40px; left: 0; right: 0; bottom: calc(var(--peek) + var(--stage-gap)); }
+  #view canvas { display: block; touch-action: none; }
+  .glass {
+    background: var(--glass); border: 1px solid var(--glass-line);
+    -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .product {
+    position: absolute; top: 12px; left: 12px; right: 12px; z-index: 2;
+    display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 14px; border-radius: 18px;
+  }
+  .product-text { min-width: 0; flex: 1; }
+  .product h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .product p { margin: 2px 0 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px var(--line-hi); margin-right: 6px; vertical-align: 0; }
+  .read {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 12px; border-radius: 13px; flex: none;
+    border: 0; background: var(--primary); color: var(--on-primary); font-size: 13px; font-weight: 600; white-space: nowrap;
+    transition: transform 160ms var(--ease-out), background 160ms;
+  }
+  .read:hover { background: var(--primary-hover); }
+  .read:active { transform: scale(0.97); }
+  .read[aria-busy="true"] svg { animation: spin 900ms linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status {
+    position: absolute; top: 84px; left: 50%; transform: translateX(-50%); z-index: 2;
+    display: flex; align-items: flex-start; gap: 8px; width: max-content; max-width: calc(100% - 24px);
+    margin: 0; padding: 6px 12px; border-radius: 14px; font-size: 12px; color: var(--ink); text-wrap: pretty;
+    transition: opacity 240ms var(--ease-out);
+  }
+  .status::before { content: ""; width: 6px; height: 6px; margin-top: 6px; border-radius: 50%; background: var(--good); flex: none; }
+  .status.busy::before { background: var(--snug); animation: pulse 1s ease-in-out infinite; }
+  .status.bad::before { background: var(--tight); }
+  .status:empty { opacity: 0; pointer-events: none; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+
+  .stage-msg {
+    position: absolute; left: 76px; right: 76px; top: calc((40px + 100% - var(--peek) - var(--stage-gap)) / 2);
+    transform: translateY(-50%); margin: 0; text-align: center; font-size: 13px; color: var(--muted); text-wrap: balance;
+  }
+
+  /* The right rail: the motion buttons, then the Effects switch. */
+  .rail { position: absolute; right: 12px; top: 112px; z-index: 1; display: flex; flex-direction: column; gap: 8px; }
+  .motion { display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 16px; }
+  .motion button, .views button {
+    border: 0; background: transparent; color: var(--muted);
+    transition: background 200ms var(--ease-out), color 200ms;
+  }
+  .motion button {
+    width: 52px; min-height: 48px; border-radius: 12px; padding: 5px 0 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; line-height: 1;
+  }
+  .motion button:hover, .views button:hover { color: var(--ink); background: var(--hover); }
+  .motion button[aria-pressed="true"], .views button[aria-pressed="true"] { background: var(--pressed); color: var(--ink); }
+
+  .views {
+    position: absolute; left: 50%; bottom: calc(var(--peek) + 10px); transform: translateX(-50%); z-index: 1;
+    display: flex; gap: 2px; padding: 4px; border-radius: 999px;
+  }
+  .fx {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 52px; padding: 8px 0 7px;
+    border-radius: 16px; color: var(--muted); font-size: 11px; line-height: 1; transition: color 200ms;
+  }
+  .fx:hover { color: var(--ink); }
+  .fx[aria-checked="true"] { color: var(--ink); }
+  .switch { position: relative; width: 26px; height: 15px; border-radius: 999px; background: var(--track); box-shadow: inset 0 0 0 1px var(--line-hi); transition: background 200ms; }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--surface-hi); box-shadow: var(--tab-shadow); transition: transform 200ms var(--ease-out);
+  }
+  .fx[aria-checked="true"] .switch { background: var(--good); box-shadow: none; }
+  .fx[aria-checked="true"] .switch::after { transform: translateX(11px); }
+
+  .views button { min-width: 56px; min-height: 44px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 500; }
+
+  /* ---------- the equip moment: a card over the stage and a burst of sparkles behind the avatar ---------- */
+  /* The live region stays in the page so a screen reader announces each new card once; the card itself comes and goes. */
+  .equip-live { position: absolute; top: 84px; left: 12px; right: 86px; z-index: 2; pointer-events: none; }
+  .equip {
+    --tone: var(--ink);
+    display: flex; align-items: center; gap: 10px; width: fit-content; max-width: 100%; padding: 9px 12px 9px 9px;
+    border-radius: 18px; pointer-events: auto; cursor: pointer; transform-origin: 24px 0;
+  }
+  .equip.good { --tone: var(--good); }
+  .equip.tight { --tone: var(--tight); }
+  .equip-mark {
+    display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; flex: none;
+    color: var(--tone); background: color-mix(in srgb, var(--tone) 15%, transparent);
+  }
+  .equip-mark svg { stroke-width: 2.2; }
+  .equip-text { display: flex; flex-direction: column; min-width: 0; }
+  .equip-text strong { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+  .equip-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tier {
+    flex: none; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 650; white-space: nowrap;
+    color: color-mix(in srgb, var(--tone) 78%, var(--ink)); background: color-mix(in srgb, var(--tone) 13%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 32%, transparent);
+  }
+  /* The sparkle canvas sits under #view (same box, earlier in the page), so the transparent 3D canvas draws the avatar over it. */
+  .burst { position: absolute; top: 40px; left: 0; right: 0; bottom: calc(var(--peek) + var(--stage-gap)); width: 100%; pointer-events: none; }
+
+  /* Motion. All of it switches off with the Effects switch (.fx-off on <html>). */
+  :root:not(.fx-off) .equip { animation: equip-in 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  :root:not(.fx-off) .equip .equip-mark { animation: mark-pop 420ms 140ms cubic-bezier(0.34, 1.7, 0.64, 1) both; }
+  :root:not(.fx-off) .equip.out { animation: equip-out 200ms cubic-bezier(0.4, 0, 1, 1) both; }
+  :root:not(.fx-off) .chip.pulse span { animation: chip-pulse 240ms 260ms var(--ease-out); }
+  :root:not(.fx-off) .motion button[aria-pressed="true"] svg { animation: press 220ms var(--ease-out); }
+  @keyframes equip-in { from { opacity: 0; transform: translateY(-10px) scale(0.9); } 55% { opacity: 1; } to { opacity: 1; transform: none; } }
+  @keyframes equip-out { to { opacity: 0; transform: translateY(-6px) scale(0.97); } }
+  @keyframes mark-pop { from { transform: scale(0.4) rotate(-12deg); } }
+  @keyframes chip-pulse { 45% { transform: scale(1.06); box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 26%, transparent); } }
+  @keyframes press { 35% { transform: scale(0.82); } 70% { transform: scale(1.08); } }
+  @keyframes fade-in { from { opacity: 0; } }
+  @keyframes fade-out { to { opacity: 0; } }
+
+  /* ---------- bottom sheet ---------- */
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; height: var(--peek); z-index: 3;
+    display: flex; flex-direction: column;
+    background: var(--sheet); border-radius: 24px 24px 0 0; box-shadow: var(--sheet-shadow);
+    transition: height 420ms var(--ease-out);
+  }
+  .sheet.dragging { transition: none; }
+  .grab {
+    display: block; width: 100%; height: 22px; padding: 0; border: 0; background: transparent; touch-action: none; cursor: grab;
+    position: relative; flex: none;
+  }
+  .grab::before { content: ""; position: absolute; left: 50%; top: 8px; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--line-hi); transition: background 160ms; }
+  .grab:hover::before { background: var(--muted); }
+  .grab:focus-visible { outline-offset: -4px; border-radius: 12px; }
+  .sheet.dragging .grab { cursor: grabbing; }
+
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .sizes { padding: 0 16px; flex: none; }
+  .verdict { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .big { font-size: 40px; line-height: 1; font-weight: 650; letter-spacing: -0.03em; min-width: 1.1em; }
+  .verdict-text { flex: 1; min-width: 0; }
+  .verdict-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 600; }
+  .verdict-say { margin: 1px 0 0; font-size: 12px; color: var(--muted); text-wrap: pretty; }
+  .flag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; color: var(--ink); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-hi); white-space: nowrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { position: relative; flex: 1 1 0; min-width: 44px; }
+  .chip span {
+    display: flex; align-items: center; justify-content: center; height: 42px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--line); font-size: 14px; font-weight: 600; color: var(--muted);
+    cursor: pointer; transition: background 200ms var(--ease-out), color 200ms, border-color 200ms;
+  }
+  .chip span:hover { color: var(--ink); border-color: var(--line-hi); }
+  .chip.rec span { border-color: color-mix(in srgb, var(--good) 60%, transparent); color: var(--ink); }
+  .chip.rec span::after { content: ""; position: absolute; top: 6px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+  .chip input:checked + span { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .chip input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .tabs { display: flex; gap: 4px; margin: 12px 16px 0; padding: 4px; border-radius: 14px; background: var(--surface); flex: none; }
+  .tabs button {
+    flex: 1; min-height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600;
+    transition: background 200ms var(--ease-out), color 200ms;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-selected="true"] { background: var(--surface-hi); color: var(--ink); box-shadow: var(--tab-shadow); }
+
+  .panes { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 28px; scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent; }
+  .panes::-webkit-scrollbar { width: 8px; }
+  .panes::-webkit-scrollbar-thumb { background: var(--line-hi); border-radius: 4px; border: 2px solid var(--sheet); }
+  .panes [role="tabpanel"] > * + * { margin-top: 16px; }
+  .panes #pane-fit > * { margin-top: 0; } /* only one of the empty state and the fit table shows */
+  .note { margin: 0; font-size: 12px; color: var(--muted); }
+  .note.bad { color: var(--tight); }
+  .note.ok { color: var(--good); }
+
+  .empty { padding: 8px 0 4px; }
+  .empty h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .empty p { margin: 4px 0 0; font-size: 13px; color: var(--muted); text-wrap: pretty; }
+  .empty .link { margin-top: 12px; padding: 0; border: 0; background: none; color: var(--ink); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-hi); min-height: 32px; }
+  .empty .link:hover { text-decoration-color: currentColor; }
+
+  /* fit */
+  .fit { width: 100%; border-collapse: collapse; }
+  .fit td { padding: 10px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+  .fit tr:first-child td { border-top: 0; padding-top: 2px; }
+  .region { width: 38%; padding-right: 12px !important; }
+  .region strong { display: block; font-size: 14px; font-weight: 500; text-transform: capitalize; }
+  .state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); text-transform: capitalize; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
+  .track { position: relative; height: 6px; border-radius: 3px; background: var(--track); }
+  .band { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--band); }
+  .you { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid var(--sheet); transition: left 400ms var(--ease-out); }
+  .range { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 11px; color: var(--faint); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+  .legend li { display: inline-flex; align-items: center; gap: 6px; }
+
+  details { border-radius: 14px; background: var(--surface); }
+  summary {
+    display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 14px; border-radius: 14px;
+    font-size: 13px; font-weight: 500; cursor: pointer; list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary svg { transition: transform 240ms var(--ease-out); color: var(--muted); }
+  details[open] summary svg { transform: rotate(180deg); }
+  .kv { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .kv td { padding: 9px 14px; border-top: 1px solid var(--line); }
+  .kv td:first-child { color: var(--muted); width: 42%; }
+  #face-table { background: var(--surface); border-radius: 14px; overflow: hidden; }
+  #face-table tr:first-child td { border-top: 0; }
+  .kv .swatch { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* me */
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; }
+  .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .input { position: relative; }
+  .input input, .field select {
+    width: 100%; height: 46px; padding: 0 40px 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+    font-size: 15px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; -moz-appearance: textfield;
+    transition: border-color 160ms;
+  }
+  .field select { padding-right: 14px; }
+  .input input::-webkit-inner-spin-button, .input input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .input input::placeholder { color: var(--faint); }
+  .input input:hover, .field select:hover { border-color: var(--line-hi); }
+  .input input:focus-visible, .field select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: transparent; }
+  .unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--faint); pointer-events: none; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 0 16px;
+    border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 600;
+    transition: background 160ms, transform 160ms var(--ease-out), opacity 160ms;
+  }
+  .btn:hover { background: var(--surface-hi); }
+  .btn:active { transform: scale(0.985); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .btn.primary:hover { background: var(--primary-hover); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .private { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--muted); margin: 0; }
+  .private svg { width: 16px; height: 16px; margin-top: 1px; color: var(--faint); }
+
+  /* face */
+  .slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .slot { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); text-align: center; cursor: pointer; }
+  .thumb {
+    display: flex; align-items: center; justify-content: center; aspect-ratio: 3 / 4; border-radius: 14px;
+    border: 1px dashed var(--line-hi); background: var(--surface) center / cover no-repeat; color: var(--faint);
+    transition: border-color 160ms, color 160ms;
+  }
+  .thumb svg { width: 36px; height: 36px; stroke-width: 1.2; }
+  .slot:hover .thumb { border-color: var(--muted); color: var(--muted); }
+  .slot:focus-within .thumb { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .thumb.filled { border-style: solid; border-color: transparent; }
+  .thumb.filled svg { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+    /* The card still arrives and leaves, by opacity only. */
+    :root:not(.fx-off) .equip { animation: fade-in 160ms both !important; }
+    :root:not(.fx-off) .equip.out { animation: fade-out 160ms both !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ic-scan" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M8 12h8"/></symbol>
+    <symbol id="ic-idle" viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="1.8"/><path d="M12 7.5v7M8.5 10.5l3.5-2 3.5 2M10 21l2-6.5 2 6.5"/></symbol>
+    <symbol id="ic-walk" viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="1.8"/><path d="M12.5 7.5l-1.5 6 3 3 1 4.5M11 13.5L8.5 21M12 8.5l-3.5 2.5-1 3M12 8.5l3 3 3 .5"/></symbol>
+    <symbol id="ic-turn" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/><circle cx="12" cy="12" r="1.6"/></symbol>
+    <symbol id="ic-arms" viewBox="0 0 24 24"><circle cx="12" cy="7" r="1.8"/><path d="M12 10v5M6 3.5l3 5.5h6l3-5.5M10 21l2-6 2 6"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M5.5 12.5l4.2 4.2L18.5 7.8"/></symbol>
+    <symbol id="ic-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="ic-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+    <symbol id="ic-face-front" viewBox="0 0 36 36"><ellipse cx="18" cy="16" rx="8" ry="10"/><path d="M8 33c1.5-5 5.5-7 10-7s8.5 2 10 7M15 15h.01M21 15h.01M16 21c1.2.8 2.8.8 4 0"/></symbol>
+    <symbol id="ic-face-left" viewBox="0 0 36 36"><path d="M22 6.5c-6 0-10 4.5-10 10 0 1.5-2 3.5-2 4.5s1.6 1 2 1.5c0 2 .5 3.5 3 3.5h1v3M8 33c2-3.5 5-5 9-5.5M23 7c3.5 1.5 5 5 5 9.5 0 4-1.5 7-4 9"/></symbol>
+    <symbol id="ic-face-right" viewBox="0 0 36 36"><path d="M14 6.5c6 0 10 4.5 10 10 0 1.5 2 3.5 2 4.5s-1.6 1-2 1.5c0 2-.5 3.5-3 3.5h-1v3M28 33c-2-3.5-5-5-9-5.5M13 7c-3.5 1.5-5 5-5 9.5 0 4 1.5 7 4 9"/></symbol>
+  </defs>
+</svg>
+
+<main class="stage">
+  <header class="product glass">
+    <div class="product-text">
+      <h1 id="product">No product read yet</h1>
+      <p id="product-meta"><span class="swatch" id="swatch" aria-hidden="true" hidden></span><span id="meta-text">Open a product page to start.</span></p>
+    </div>
+    <button type="button" class="read" id="read"><svg class="i" aria-hidden="true"><use href="#ic-scan"/></svg>Read page</button>
+  </header>
+  <p class="status glass" id="status" role="status"></p>
+
+  <div id="view"></div>
+  <p class="stage-msg" id="stage-msg" hidden>The avatar could not be built. The size advice below still works.</p>
+
+  <div class="equip-live" id="equip-live" role="status"></div>
+
+  <div class="rail">
+  <div class="motion glass" role="group" aria-label="Motion" id="motion">
+    <button type="button" data-motion="idle" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#ic-idle"/></svg>Idle</button>
+    <button type="button" data-motion="walk" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#ic-walk"/></svg>Walk</button>
+    <button type="button" data-motion="turn" aria-pressed="false" aria-label="Turn 360°"><svg class="i" aria-hidden="true"><use href="#ic-turn"/></svg>Turn</button>
+    <button type="button" data-motion="armsUp" aria-pressed="false" aria-label="Arms up"><svg class="i" aria-hidden="true"><use href="#ic-arms"/></svg>Arms</button>
+  </div>
+  <button type="button" class="fx glass" id="fx" role="switch" aria-checked="true" title="Try-on animation, sparkles and rim light"><span class="switch" aria-hidden="true"></span>Effects</button>
+  </div>
+
+  <div class="views glass" role="group" aria-label="Camera view" id="views">
+    <button type="button" data-view="front" aria-pressed="false">Front</button>
+    <button type="button" data-view="side" aria-pressed="false">Side</button>
+    <button type="button" data-view="back" aria-pressed="false">Back</button>
+    <button type="button" data-view="three" aria-pressed="true" aria-label="Three-quarter">¾</button>
+  </div>
+</main>
+
+<section class="sheet" id="sheet" aria-label="Size, measurements and face photos">
+  <button type="button" class="grab" id="grab" aria-expanded="false" aria-controls="panes"><span class="sr" id="grab-label">Expand panel</span></button>
+
+  <fieldset class="sizes" id="sizes" hidden>
+    <legend class="sr">Size</legend>
+    <div class="verdict">
+      <span class="big" id="big" aria-hidden="true"></span>
+      <div class="verdict-text">
+        <div class="verdict-head"><span id="verdict-title"></span><span class="flag" id="flag" hidden></span></div>
+        <p class="verdict-say" id="recommend"></p>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+  </fieldset>
+
+  <div class="tabs" role="tablist" aria-label="Panel sections">
+    <button type="button" role="tab" id="tab-fit" aria-controls="pane-fit" aria-selected="true">Fit</button>
+    <button type="button" role="tab" id="tab-me" aria-controls="pane-me" aria-selected="false" tabindex="-1">Me</button>
+    <button type="button" role="tab" id="tab-face" aria-controls="pane-face" aria-selected="false" tabindex="-1">Face</button>
+  </div>
+
+  <div class="panes" id="panes">
+    <!-- FIT -->
+    <div role="tabpanel" id="pane-fit" aria-labelledby="tab-fit" tabindex="0">
+      <div class="empty" id="fit-empty">
+        <h2 id="fit-empty-title">No product yet</h2>
+        <p id="fit-empty-text">Open a product page and press Read page. You get a size for your measurements and the fit at each body region.</p>
+        <button type="button" class="link" id="go-me">Check your measurements</button>
+      </div>
+      <div id="fit-section" hidden>
+        <table class="fit" id="fit">
+          <thead class="sr"><tr><th scope="col">Region</th><th scope="col">Your measurement against this size</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <ul class="legend" aria-label="Fit key" style="margin-top:12px">
+          <li><span class="dot" style="background:var(--tight)"></span>Tight</li>
+          <li><span class="dot" style="background:var(--snug)"></span>Snug</li>
+          <li><span class="dot" style="background:var(--good)"></span>Good</li>
+          <li><span class="dot" style="background:var(--loose)"></span>Loose</li>
+        </ul>
+        <details id="fabric-details" style="margin-top:16px">
+          <summary>Fabric used in the simulation<svg class="i" aria-hidden="true"><use href="#ic-chev"/></svg></summary>
+          <table class="kv num" id="fabric"><tbody></tbody></table>
+        </details>
+      </div>
+    </div>
+
+    <!-- ME -->
+    <div role="tabpanel" id="pane-me" aria-labelledby="tab-me" tabindex="0" hidden>
+      <form id="me" novalidate>
+        <fieldset>
+          <legend class="sr">My measurements (cm)</legend>
+          <div class="fields">
+            <label class="field">Height<span class="input"><input type="number" name="height" step="0.1" required inputmode="decimal"><span class="unit">cm</span></span></label>
+            <label class="field">Chest<span class="input"><input type="number" name="chest" step="0.1" required inputmode="decimal"><span class="unit">cm</span></span></label>
+            <label class="field">Waist<span class="input"><input type="number" name="waist" step="0.1" required inputmode="decimal"><span class="unit">cm</span></span></label>
+            <label class="field">Hip<span class="input"><input type="number" name="hip" step="0.1" required inputmode="decimal"><span class="unit">cm</span></span></label>
+            <label class="field">Shoulder width<span class="input"><input type="number" name="shoulder" step="0.1" required inputmode="decimal"><span class="unit">cm</span></span></label>
+            <label class="field">Inseam<span class="input"><input type="number" name="inseam" step="0.1" placeholder="Auto" inputmode="decimal"><span class="unit">cm</span></span></label>
+            <label class="field">Sex<select name="sex"><option value="male">Male</option><option value="female">Female</option></select></label>
+          </div>
+        </fieldset>
+        <p class="note bad" id="errors" role="alert" style="margin:12px 0 4px"></p>
+        <button type="submit" class="btn primary">Save and rebuild avatar</button>
+      </form>
+      <p class="private"><svg class="i" aria-hidden="true"><use href="#ic-lock"/></svg>Saved in this browser only. Nothing is sent anywhere.</p>
+    </div>
+
+    <!-- FACE -->
+    <div role="tabpanel" id="pane-face" aria-labelledby="tab-face" tabindex="0" hidden>
+      <button type="button" class="btn primary" id="camera"><svg class="i" aria-hidden="true"><use href="#ic-camera"/></svg>Take photos with camera</button>
+      <p class="note">The camera takes the front photo, then each side, by itself. Or choose three photo files:</p>
+      <div class="slots">
+        <label class="slot"><span class="thumb" id="img0"><svg class="i" aria-hidden="true"><use href="#ic-face-front"/></svg></span>Front<input class="sr" type="file" accept="image/*" data-slot="0"></label>
+        <label class="slot"><span class="thumb" id="img1"><svg class="i" aria-hidden="true"><use href="#ic-face-left"/></svg></span>Left side<input class="sr" type="file" accept="image/*" data-slot="1"></label>
+        <label class="slot"><span class="thumb" id="img2"><svg class="i" aria-hidden="true"><use href="#ic-face-right"/></svg></span>Right side<input class="sr" type="file" accept="image/*" data-slot="2"></label>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn primary" id="use-photos" disabled>Use these photos</button>
+        <button type="button" class="btn" id="remove-photos" disabled>Remove photos</button>
+      </div>
+      <p class="note" id="photo-status" role="status"></p>
+      <table class="kv" id="face-table" hidden><tbody></tbody></table>
+      <p class="private"><svg class="i" aria-hidden="true"><use href="#ic-lock"/></svg>Photos stay in this browser. Nothing is uploaded.</p>
+    </div>
+  </div>
+</section>
+<script type="module" src="panel.js"></script>
+</body>
+</html>

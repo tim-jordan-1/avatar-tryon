@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar Fit PoC</title>
+<style>
+  :root { --bg: #f4f2ee; --panel: #fff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e3e0da; --accent: #2f5d50; --on-accent: #fff; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151618; --panel: #1e1f22; --ink: #ececee; --muted: #9a9aa0; --line: #2e2f33; --accent: #7fc3a9; --on-accent: #0f2a21; --bad: #ff8a80; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); display: grid; grid-template-columns: 340px 1fr; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; padding: 16px; }
+  main { position: relative; min-height: 60vh; }
+  #view { position: absolute; inset: 0; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+  p.note { color: var(--muted); margin: 0 0 8px; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 2px; }
+  input[type=number] { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); width: 100%; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin: 8px 0; }
+  button, select { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); width: 100%; margin-top: 10px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); padding: 0; }
+  #errors { color: var(--bad); font-size: 12px; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  td, th { padding: 3px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+  .ok { color: var(--accent); } .off { color: var(--bad); }
+  .views { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
+  .views button { background: var(--panel); }
+  @media (max-width: 760px) { body { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; } main { order: -1; height: 60vh; } aside { border-right: 0; } }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<aside>
+  <h1>Avatar Fit PoC</h1>
+  <p class="note">Type your tape measurements. The avatar is rebuilt so a tape on the mesh gives the same numbers. Nothing leaves this page.</p>
+
+  <form id="form">
+    <h2>Measurements (cm)</h2>
+    <div class="grid">
+      <label>Height<input type="number" step="0.1" name="height" required></label>
+      <label>Shoulder width<input type="number" step="0.1" name="shoulder" required title="Across the back, shoulder point to shoulder point"></label>
+      <label>Chest / bust<input type="number" step="0.1" name="chest" required title="Fullest part"></label>
+      <label>Waist<input type="number" step="0.1" name="waist" required title="Natural waist, narrowest part"></label>
+      <label>Hip<input type="number" step="0.1" name="hip" required title="Fullest part of the seat"></label>
+      <label>Inseam<input type="number" step="0.1" name="inseam" placeholder="auto"></label>
+      <label>Body shape<select name="sex" title="Sets the torso cross-section shape (survey medians)"><option value="">Neutral</option><option value="female">Female</option><option value="male">Male</option></select></label>
+    </div>
+    <details>
+      <summary>More measurements (optional, estimated if blank)</summary>
+      <div class="grid">
+        <label>Neck<input type="number" step="0.1" name="neck" placeholder="auto"></label>
+        <label>Thigh<input type="number" step="0.1" name="thigh" placeholder="auto"></label>
+        <label>Calf<input type="number" step="0.1" name="calf" placeholder="auto"></label>
+        <label>Upper arm<input type="number" step="0.1" name="upperArm" placeholder="auto"></label>
+        <label>Arm length<input type="number" step="0.1" name="armLength" placeholder="auto" title="Shoulder point to wrist"></label>
+        <label>Wrist<input type="number" step="0.1" name="wrist" placeholder="auto"></label>
+      </div>
+    </details>
+    <div id="errors"></div>
+    <button class="primary" type="submit">Build avatar</button>
+  </form>
+
+  <h2>Check: tape on the mesh</h2>
+  <table id="readout"><thead><tr><th></th><th>You</th><th>Mesh</th><th>Δ</th></tr></thead><tbody></tbody></table>
+  <p class="note" id="implied" style="margin-top:6px"></p>
+
+  <h2>Real people (ANSUR II)</h2>
+  <p class="note">Load a participant from the 2012 US Army body survey. Compare their scale weight with the weight the avatar's volume implies.</p>
+  <div class="row"><button type="button" data-real="Male">Random man</button><button type="button" data-real="Female">Random woman</button></div>
+  <p class="note" id="realInfo" style="margin-top:6px"></p>
+
+  <h2>Skin</h2>
+  <div class="row" id="swatches"></div>
+  <div class="row" style="margin-top:6px"><input type="color" id="skin" value="#c68e6a" aria-label="Skin colour"> <button type="button" id="matchSkin" disabled>Match from photo</button></div>
+
+  <h2>Face photo (experimental)</h2>
+  <p class="note">A front-facing photo, face centred. It is projected onto the front of the head in this browser only.</p>
+  <input type="file" id="photo" accept="image/*">
+  <div class="grid" style="margin-top:6px">
+    <label>Zoom<input type="range" id="faceZoom" min="0.8" max="3" step="0.05" value="1.6"></label>
+    <label>Move up/down<input type="range" id="faceY" min="-0.3" max="0.3" step="0.01" value="0"></label>
+  </div>
+
+  <h2>Motion</h2>
+  <select id="anim" aria-label="Animation">
+    <option value="apose">Stand (measuring pose)</option>
+    <option value="idle" selected>Idle</option>
+    <option value="walk">Walk</option>
+    <option value="turn">Turn 360°</option>
+    <option value="armsUp">Arms up</option>
+  </select>
+</aside>
+<main>
+  <div id="view"></div>
+  <div class="views">
+    <button data-view="front">Front</button><button data-view="side">Side</button><button data-view="back">Back</button>
+    <button data-view="three">¾</button><button data-view="face">Face</button><button data-view="waist">Waist</button>
+  </div>
+</main>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

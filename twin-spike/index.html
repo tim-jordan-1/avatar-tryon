@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twin Spike</title>
+<style>
+  :root { --bg: #f4f2ee; --panel: #fff; --ink: #1d1d1f; --muted: #66645f; --line: #e3e0da; --accent: #2f5d50; --on-accent: #fff; --bad: #b3261e; --ok: #2f6d3c; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151618; --panel: #1e1f22; --ink: #ececee; --muted: #a09e99; --line: #2e2f33; --accent: #7fc3a9; --on-accent: #0f2a21; --bad: #ff8a80; --ok: #8fd1a8; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); display: grid; grid-template-columns: minmax(340px, 460px) 1fr; min-height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); padding: 16px; overflow-y: auto; max-height: 100vh; }
+  main { position: relative; min-height: 60vh; }
+  #view { position: absolute; inset: 0; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+  p.note { color: var(--muted); margin: 0 0 8px; font-size: 12px; }
+  .slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .slot { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+  .slot canvas { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .slot input, .slot select { font: inherit; font-size: 13px; width: 100%; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .slot input[type=file] { font-size: 11px; padding: 0; border: 0; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  button { font: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; min-height: 40px; }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); width: 100%; margin-top: 10px; }
+  button:disabled { opacity: .5; cursor: default; }
+  #status { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  td, th { padding: 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+  .swatch { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); vertical-align: middle; margin-right: 6px; }
+  .views { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; }
+  .views button { background: var(--panel); }
+  @media (max-width: 760px) { body { grid-template-columns: 1fr; } main { order: -1; height: 55vh; } aside { max-height: none; border-right: 0; } }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+                 "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.1.1/vision_bundle.mjs" } }
+</script>
+</head>
+<body>
+<aside>
+  <h1>Twin spike: three photos to a 3D head</h1>
+  <p class="note">Front, left side, right side. Photos are analysed in this browser and never uploaded. The models are downloaded from Google once.</p>
+
+  <h2>Photos</h2>
+  <div class="slots">
+    <label class="slot">Front<canvas id="c0" width="300" height="400"></canvas><input type="file" accept="image/*" data-slot="0" aria-label="Front photo"></label>
+    <label class="slot">Left side<canvas id="c1" width="300" height="400"></canvas><input type="file" accept="image/*" data-slot="1" aria-label="Left side photo"></label>
+    <label class="slot">Right side<canvas id="c2" width="300" height="400"></canvas><input type="file" accept="image/*" data-slot="2" aria-label="Right side photo"></label>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button type="button" data-sample="human">Sample: render with short hair</button>
+    <button type="button" data-sample="scan">Sample: head scan, no hair</button>
+  </div>
+  <button class="primary" id="run" type="button" disabled>Analyse and build head</button>
+  <div id="status" role="status">Loading models…</div>
+
+  <h2>Body (cm)</h2>
+  <div class="slots">
+    <label class="slot">Height<input type="number" id="b-height" value="178" step="0.1"></label>
+    <label class="slot">Chest<input type="number" id="b-chest" value="100" step="0.1"></label>
+    <label class="slot">Waist<input type="number" id="b-waist" value="86" step="0.1"></label>
+    <label class="slot">Hip<input type="number" id="b-hip" value="100" step="0.1"></label>
+    <label class="slot">Shoulders (outside of upper arms)<input type="number" id="b-shoulder" value="49" step="0.1"></label>
+    <label class="slot">Inseam<input type="number" id="b-inseam" value="85" step="0.1"></label>
+    <label class="slot">Body shape<select id="b-sex"><option value="male">Male</option><option value="female">Female</option><option value="">Neutral</option></select></label>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <label class="slot" style="flex:1">View<select id="view-mode"><option value="body">Head on body</option><option value="head">Head only</option></select></label>
+    <label class="slot" style="flex:1">Hair<select id="hair"></select></label>
+    <button type="button" id="rebuild">Rebuild body</button>
+  </div>
+
+  <h2>Fit check</h2>
+  <div class="row">
+    <label class="slot" style="flex:1">Shop chart<select id="chart"><option value="">None</option><option value="nike-tops">Nike men's tops</option><option value="nike-bottoms">Nike men's bottoms</option><option value="asos-tops">ASOS men's tops</option><option value="asos-jeans">ASOS men's jeans (waist)</option><option value="lulu-tops">Lululemon men's tops</option><option value="lulu-bottoms">Lululemon men's bottoms</option></select></label>
+    <label class="slot" style="flex:1">Size<select id="size"></select></label>
+  </div>
+  <div id="fit"></div>
+
+  <h2>Photo checks</h2>
+  <table id="checks"><thead><tr><th>Photo</th><th>Face</th><th>Head turn</th><th>Fit error</th></tr></thead><tbody></tbody></table>
+
+  <h2>Estimates</h2>
+  <table id="est"><tbody></tbody></table>
+  <p class="note">Sizes in mm assume 90 mm between the outer eye corners (adult average), so they are rough. Hair thresholds are first guesses.</p>
+</aside>
+<main><div id="view"></div><div class="views"><button type="button" data-cam="body">Full body</button><button type="button" data-cam="face">Face</button></div></main>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

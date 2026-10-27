@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Take face photos</title>
+<style>
+  :root { --bg: #f4f2ee; --panel: #fff; --ink: #1d1d1f; --muted: #66645f; --line: #e3e0da; --accent: #2f5d50; --on-accent: #fff; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #151618; --panel: #1e1f22; --ink: #ececee; --muted: #a09e99; --line: #2e2f33; --accent: #7fc3a9; --on-accent: #0f2a21; --bad: #ff8a80; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 32px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 20px 0 12px; }
+  .note { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+  .bad { color: var(--bad); }
+  button { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); min-height: 38px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); width: 100%; margin-top: 16px; min-height: 44px; }
+  #stage { position: relative; margin-top: 16px; aspect-ratio: 4 / 3; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  #ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #ring ellipse { fill: none; stroke-width: 1.6; }
+  #ring .track { stroke: rgba(255, 255, 255, .5); }
+  #ring .bar { stroke: #8fd1a8; stroke-width: 2.4; stroke-linecap: round; }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .35s ease-out; }
+  #flash.on { opacity: .9; transition: none; }
+  #prompt { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px; text-align: center; color: #fff; font-size: 15px; background: linear-gradient(transparent, rgba(0, 0, 0, .65)); }
+  #steps { display: flex; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+  #steps li { flex: 1; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; color: var(--muted); background: var(--panel); text-align: center; }
+  #steps li.now { border-color: var(--accent); color: var(--ink); }
+  #steps li.done { color: var(--accent); }
+  .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; }
+  .shot { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
+  .shot canvas { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Take face photos</h1>
+  <p class="note">Three photos: the front, then your head turned to each side. They are taken automatically when you hold the pose. They stay in this browser and are never uploaded.</p>
+  <button type="button" class="primary" id="start">Start camera</button>
+  <p class="note" id="status" role="status"></p>
+  <div id="stage" hidden>
+    <video id="video" playsinline muted></video>
+    <svg id="ring" viewBox="0 0 100 75" preserveAspectRatio="none"><ellipse class="track" cx="50" cy="37" rx="19" ry="27"/><ellipse class="bar" id="bar" cx="50" cy="37" rx="19" ry="27" transform="rotate(-90 50 37)"/></svg>
+    <div id="flash"></div>
+    <div id="prompt" aria-live="polite"></div>
+  </div>
+  <ol id="steps" hidden><li>Front</li><li>Left side</li><li>Right side</li></ol>
+  <section id="review" hidden>
+    <h2>Your photos</h2>
+    <div class="shots" id="shots"></div>
+    <button type="button" class="primary" id="use" disabled>Use these photos</button>
+  </section>
+</main>
+<script type="module" src="capture.js"></script>
+</body>
+</html>

@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try-On Editorial</title>
+<!-- Mockup B, "Guided Editorial". Static: no network requests, sample data only. -->
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #f7f2ea;
+    --card: #fffdf9;
+    --ink: #1e1915;
+    --ink-2: #5e5249;
+    --line: #e2d7c9;
+    --line-2: #cdbfae;
+    --accent: #7a2e1d;
+    --accent-ink: #fffaf5;
+    --accent-soft: #f2e3d7;
+    --good: #3d6b45;
+    --snug: #8a5a0f;
+    --tight: #a3381f;
+    --loose: #33598a;
+    --navy: #1f2d4d;
+    --serif: "Iowan Old Style", "Charter", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --r: 18px;
+    --ease: cubic-bezier(.16, 1, .3, 1);
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); scrollbar-color: var(--line-2) var(--paper); }
+  body { margin: 0 auto; max-width: 440px; min-width: 320px; font: 15px/1.5 var(--sans); color: var(--ink); background: var(--paper); caret-color: var(--accent); -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--accent-soft); color: var(--ink); }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [hidden] { display: none !important; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Mockup-only switch: not part of the product UI */
+  .mock { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px dashed var(--line-2); font-size: 12px; color: var(--ink-2); background: #efe7dc; }
+  .mock span { margin-right: auto; }
+  .mock button { min-height: 44px; padding: 4px 10px; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; font-size: 12px; }
+  .mock button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* App bar */
+  .bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 4px; }
+  .mark { font-family: var(--serif); font-size: 21px; font-style: italic; font-weight: 600; letter-spacing: -0.02em; }
+  .mark b { font-style: normal; color: var(--accent); }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border-radius: 999px; border: 1px solid transparent; font-weight: 600; transition: background .2s, transform .2s var(--ease); }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { background: #64251a; }
+  .btn-ghost { background: transparent; border-color: var(--line-2); color: var(--ink); }
+  .btn-ghost:hover { background: var(--card); }
+  .btn-text { min-height: 44px; padding: 0 10px; background: none; border: 0; color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
+  .btn svg { width: 18px; height: 18px; flex: none; }
+  .wide { width: 100%; }
+
+  .note { font-size: 13px; color: var(--ink-2); }
+  .note.bad { color: var(--tight); }
+  .lock { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+  .lock svg { width: 14px; height: 14px; flex: none; }
+
+  /* ---------- Setup flow ---------- */
+  .setup { padding: 4px 16px 32px; }
+  .progress { margin: 8px 0 28px; }
+  .progress ol { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; padding: 0; }
+  .progress button { width: 100%; min-height: 44px; padding: 10px 0 0; border: 0; border-top: 3px solid var(--line); background: none; text-align: left; font-size: 12.5px; color: var(--ink-2); border-radius: 0; }
+  .progress button .n { font-family: var(--serif); font-style: italic; margin-right: 4px; }
+  .progress button.done { border-top-color: var(--ink); color: var(--ink); }
+  .progress button[aria-current="step"] { border-top-color: var(--accent); color: var(--ink); font-weight: 600; }
+  .step h1 { font-size: 32px; line-height: 1.1; margin-bottom: 10px; }
+  .step h1 em { color: var(--accent); }
+  .step .lede { color: var(--ink-2); font-size: 15.5px; margin-bottom: 24px; max-width: 34ch; }
+  .step { animation: rise .5s var(--ease); }
+  @keyframes rise { from { opacity: .3; transform: translateY(8px); } }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { position: relative; }
+  .chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .chip span { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 16px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--card); font-weight: 500; transition: background .2s, color .2s; }
+  .chip input:checked + span { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .chip .rec { font-size: 10px; margin-left: 4px; }
+  fieldset { border: 0; padding: 0; margin: 0 0 22px; }
+  legend { font-size: 13px; font-weight: 600; margin-bottom: 8px; padding: 0; }
+
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .unit { position: relative; }
+  .unit input { width: 100%; min-height: 48px; padding: 10px 40px 10px 14px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--card); font-size: 17px; font-variant-numeric: tabular-nums; }
+  .unit input::placeholder { color: #7a6d62; }
+  .unit input:focus-visible { outline-offset: 1px; border-color: var(--accent); }
+  .unit input[aria-invalid="true"] { border-color: var(--tight); }
+  .unit::after { content: "cm"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--ink-2); pointer-events: none; }
+  .howto { margin: 18px 0 0; font-size: 13.5px; color: var(--ink-2); }
+  .howto summary { min-height: 44px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--ink); font-weight: 600; list-style: none; }
+  .howto summary::-webkit-details-marker { display: none; }
+  .howto summary::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .25s var(--ease); }
+  .howto[open] summary::after { transform: translateY(2px) rotate(-135deg); }
+  .howto ul { margin: 0; padding-left: 18px; }
+  .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 26px; }
+  .actions .row { display: flex; gap: 10px; }
+  .actions .row .btn { flex: 1; }
+
+  /* Face slots */
+  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0 12px; }
+  .slot { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 600; text-align: center; cursor: pointer; }
+  .slot input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .frame { position: relative; display: grid; place-items: center; aspect-ratio: 3 / 4; border: 1px dashed var(--line-2); border-radius: 14px; background: var(--card) center / cover; color: var(--ink-2); overflow: hidden; }
+  .frame svg { width: 56%; opacity: .55; }
+  .frame .add { position: absolute; bottom: 8px; left: 0; right: 0; font-size: 11.5px; font-weight: 500; }
+  .slot:focus-within .frame { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .slot.filled .frame { border-style: solid; border-color: var(--ink); background: #e9dccd; }
+  .slot.filled .frame svg { opacity: 1; }
+  .or { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink-2); margin: 16px 0 0; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  .facts { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 14px; }
+  .facts th, .facts td { padding: 10px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .facts th { font-weight: 500; color: var(--ink-2); width: 46%; padding-right: 12px; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+
+  .summary-card { padding: 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 16px; }
+  .summary-card dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: 14px; }
+  .summary-card dt { color: var(--ink-2); }
+  .summary-card dd { margin: 0; }
+
+  /* ---------- Fitting room ---------- */
+  .room { padding: 0 16px 36px; display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 1px 2px rgba(60, 40, 20, .04), 0 6px 12px -8px rgba(60, 40, 20, .14); }
+
+  .product { display: grid; grid-template-columns: 64px 1fr; gap: 14px; padding: 14px; align-items: center; }
+  .thumb { width: 64px; height: 80px; border-radius: 10px; background: #e9e0d4; display: grid; place-items: center; }
+  .thumb svg { width: 46px; }
+  .product h1 { font-size: 20px; line-height: 1.2; }
+  .product .meta { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+  .product .foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+  .product .foot .note { font-size: 12.5px; min-width: 0; }
+  .read { white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; background: none; border: 0; font-weight: 600; color: var(--accent); font-size: 14px; }
+  .read svg { width: 16px; height: 16px; }
+
+  .stage { position: relative; overflow: hidden; padding: 0; }
+  .stage .floor { position: relative; height: 320px; background: radial-gradient(120% 70% at 50% 100%, #eadfd1 0%, #f6efe6 55%, var(--card) 100%); display: grid; place-items: end center; }
+  .stage .floor::after { content: ""; position: absolute; bottom: 18px; left: 50%; width: 120px; height: 14px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(60, 40, 20, .18), transparent); }
+  .avatar { height: 262px; margin-bottom: 10px; position: relative; z-index: 1; overflow: visible; }
+  .motion { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 2; }
+  .motion .chip span { min-height: 44px; min-width: 0; padding: 0 12px; font-size: 13px; background: rgba(255, 253, 249, .85); }
+  .motion legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .views { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+  .views button { min-height: 48px; border: 0; background: none; font-size: 14px; color: var(--ink-2); border-right: 1px solid var(--line); border-radius: 0; }
+  .views button:last-child { border-right: 0; }
+  .views button[aria-pressed="true"] { color: var(--ink); font-weight: 700; box-shadow: inset 0 -3px 0 var(--accent); }
+  .views button:focus-visible { outline-offset: -3px; }
+  .stage-status { padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-2); }
+
+  /* SVG avatar parts */
+  .fig { transform-box: view-box; transform-origin: 100px 380px; transition: transform .6s var(--ease); }
+  .arm { transform-box: view-box; transition: transform .7s var(--ease); }
+  .arm.l { transform-origin: 63px 97px; }
+  .arm.r { transform-origin: 137px 97px; }
+  .fig .back-hair { opacity: 0; transition: opacity .3s; }
+  [data-view="side"] .fig { transform: scaleX(.52); }
+  [data-view="three"] .fig { transform: scaleX(.8) skewY(-2deg); }
+  [data-view="back"] .fig .back-hair { opacity: 1; }
+  [data-view="back"] .fig .neckline, [data-view="side"] .fig .neckline { opacity: 0; }
+  [data-motion="armsUp"] .arm.l { transform: rotate(150deg); }
+  [data-motion="armsUp"] .arm.r { transform: rotate(-150deg); }
+  [data-motion="walk"] .bob { animation: bob 1.1s ease-in-out infinite; }
+  [data-motion="walk"] .arm.l { animation: swing 1.1s ease-in-out infinite; }
+  [data-motion="walk"] .arm.r { animation: swing 1.1s ease-in-out infinite reverse; }
+  [data-motion="turn"] .fig { animation: turn 4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-3px); } }
+  @keyframes swing { 0%, 100% { transform: rotate(9deg); } 50% { transform: rotate(-9deg); } }
+  @keyframes turn { 0%, 100% { transform: scaleX(1); } 25% { transform: scaleX(.5); } 50% { transform: scaleX(-1); } 75% { transform: scaleX(-.5); } }
+
+  /* Verdict */
+  .verdict { padding: 20px 18px 8px; }
+  .verdict h2 { font-size: 22px; display: flex; align-items: baseline; gap: 10px; }
+  .verdict h2 .size { font-size: 56px; line-height: .9; font-style: italic; color: var(--accent); letter-spacing: -0.03em; }
+  .verdict h2 .size.pop { animation: pop .45s var(--ease); }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } }
+  .verdict .flag { font-family: var(--sans); font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); align-self: center; margin-left: auto; }
+  .verdict .flag.off { background: #efe7dc; color: var(--ink-2); }
+  .verdict .say { font-family: var(--serif); font-size: 17.5px; line-height: 1.45; margin: 12px 0 18px; }
+  .verdict fieldset { margin: 0 0 6px; }
+  .verdict .chips { gap: 6px; }
+  .verdict .chip span { min-width: 48px; padding: 0 12px; }
+
+  .fitbar { padding: 6px 18px 18px; }
+  .fitbar h3 { font-size: 17px; margin: 14px 0 4px; }
+  .region { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: baseline; }
+  .region .track { grid-column: 1 / -1; margin: 4px 0 2px; }
+  .region .detail { grid-column: 1 / -1; font-size: 12px; color: var(--ink-2); }
+  .axis { display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; font-size: 11.5px; color: var(--ink-2); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .region { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .region:last-child { border-bottom: 0; }
+  .region .name { font-weight: 600; font-size: 14.5px; }
+  .track { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; height: 10px; }
+  .track i { border-radius: 3px; background: #ece3d8; }
+  .track i:nth-child(3) { background: #dbe6d6; }
+  .track b { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 3px solid var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .5s var(--ease), background .3s; }
+  .region .st { font-size: 13px; font-weight: 600; text-align: right; }
+  .st.good { color: var(--good); } .st.snug { color: var(--snug); } .st.tight { color: var(--tight); } .st.loose { color: var(--loose); }
+
+  .fabric { margin: 0 18px 18px; border-top: 1px solid var(--line); }
+  .fabric summary, .profile summary { min-height: 48px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; font-weight: 600; font-size: 14px; }
+  .fabric summary::-webkit-details-marker, .profile summary::-webkit-details-marker { display: none; }
+  .fabric summary::after, .profile summary::after { content: ""; width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); margin-right: 4px; transition: transform .25s var(--ease); }
+  .fabric[open] summary::after, .profile[open] summary::after { transform: rotate(-135deg); }
+  .fabric .facts { margin-top: 0; }
+
+  .profile-wrap h2 { font-size: 20px; margin: 10px 2px 10px; }
+  .profile { padding: 0 16px; }
+  .profile + .profile { border-top: 1px solid var(--line); }
+  .profile summary span { display: flex; flex-direction: column; }
+  .profile summary small { font-weight: 400; color: var(--ink-2); font-size: 12.5px; }
+  .profile .inner { padding: 4px 0 16px; }
+  .profile .inner p { font-size: 13.5px; color: var(--ink-2); margin-bottom: 12px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mock" role="group" aria-label="Mockup screen switch">
+  <span>Mockup view</span>
+  <button type="button" data-screen="setup" aria-pressed="false">Setup flow</button>
+  <button type="button" data-screen="room" aria-pressed="true">Fitting room</button>
+</div>
+
+<header class="bar">
+  <div class="mark" aria-label="Try-On">Try<b>·</b>On</div>
+  <button type="button" class="btn-text" id="to-profile" data-goto="room-profile">Your profile</button>
+</header>
+
+<!-- ================= SETUP FLOW ================= -->
+<main id="setup" class="setup" hidden>
+  <nav class="progress" aria-label="Setup progress">
+    <ol>
+      <li><button type="button" data-step="1" aria-current="step"><span class="n">1</span>Measurements</button></li>
+      <li><button type="button" data-step="2"><span class="n">2</span>Face <span class="note">· optional</span></button></li>
+      <li><button type="button" data-step="3"><span class="n">3</span>Try on</button></li>
+    </ol>
+  </nav>
+
+  <!-- Step 1 -->
+  <section class="step" data-panel="1" aria-labelledby="s1h">
+    <h1 id="s1h">First, your <em>measurements</em>.</h1>
+    <p class="lede">A soft tape and two minutes. We build your avatar from these, so the fit is yours, not a model's.</p>
+    <form id="me" novalidate>
+      <fieldset>
+        <legend>Body shape</legend>
+        <div class="chips" role="radiogroup">
+          <label class="chip"><input type="radio" name="sex" value="male" checked><span>Male</span></label>
+          <label class="chip"><input type="radio" name="sex" value="female"><span>Female</span></label>
+        </div>
+      </fieldset>
+      <div class="fields">
+        <div class="field"><label for="f-height">Height</label><div class="unit"><input id="f-height" name="height" type="number" step="0.1" inputmode="decimal" value="178" required></div></div>
+        <div class="field"><label for="f-chest">Chest</label><div class="unit"><input id="f-chest" name="chest" type="number" step="0.1" inputmode="decimal" value="98" required></div></div>
+        <div class="field"><label for="f-waist">Waist</label><div class="unit"><input id="f-waist" name="waist" type="number" step="0.1" inputmode="decimal" value="84" required></div></div>
+        <div class="field"><label for="f-hip">Hip</label><div class="unit"><input id="f-hip" name="hip" type="number" step="0.1" inputmode="decimal" value="98" required></div></div>
+        <div class="field"><label for="f-shoulder">Shoulder width</label><div class="unit"><input id="f-shoulder" name="shoulder" type="number" step="0.1" inputmode="decimal" value="46" required></div></div>
+        <div class="field"><label for="f-inseam">Inseam</label><div class="unit"><input id="f-inseam" name="inseam" type="number" step="0.1" inputmode="decimal" placeholder="Auto"></div></div>
+      </div>
+      <details class="howto">
+        <summary>How to measure</summary>
+        <ul>
+          <li>Chest: around the fullest part, tape level under the arms.</li>
+          <li>Waist: around your natural waist, above the belly button.</li>
+          <li>Shoulder width: across the back, from one shoulder point to the other.</li>
+          <li>Inseam: leave empty and we estimate it from your height.</li>
+        </ul>
+      </details>
+      <p class="note bad" id="errors" role="alert"></p>
+      <div class="actions">
+        <button type="submit" class="btn btn-primary wide" id="save">Save and build my avatar</button>
+        <p class="lock"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Saved in this browser only. Nothing is sent anywhere.</p>
+      </div>
+    </form>
+  </section>
+
+  <!-- Step 2 -->
+  <section class="step" data-panel="2" aria-labelledby="s2h" hidden>
+    <h1 id="s2h">Add your <em>face</em>, if you like.</h1>
+    <p class="lede">Three photos give the avatar your face, hair and skin tone. You can skip this and add them later.</p>
+    <button type="button" class="btn btn-primary wide" id="camera">
+      <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6.5h3l1.5-2h5L14 6.5h3v9H3z"/><circle cx="10" cy="11" r="3"/></svg>
+      Take photos with camera
+    </button>
+    <p class="note" style="margin-top:8px">The camera takes the front photo, then each side, by itself.</p>
+    <p class="or">or choose three photo files</p>
+    <div class="slots">
+      <label class="slot" data-slot="0"><span class="frame"><svg viewBox="0 0 40 48" aria-hidden="true"><ellipse cx="20" cy="20" rx="11" ry="14" fill="#c99877"/><path d="M8 18c0-10 6-15 12-15s12 5 12 15c-3-6-7-8-12-8s-9 2-12 8z" fill="#2b201a"/><path d="M4 48c2-9 8-12 16-12s14 3 16 12z" fill="#1f2d4d"/></svg><span class="add">Choose</span></span>Front<input type="file" accept="image/*"></label>
+      <label class="slot" data-slot="1"><span class="frame"><svg viewBox="0 0 40 48" aria-hidden="true"><ellipse cx="21" cy="20" rx="9" ry="14" fill="#c99877"/><path d="M12 18c0-10 5-15 10-15s10 4 10 13c-4-4-7-5-10-4-2 1-6 3-10 6z" fill="#2b201a"/><path d="M6 48c2-9 7-12 15-12s13 3 14 12z" fill="#1f2d4d"/></svg><span class="add">Choose</span></span>Left side<input type="file" accept="image/*"></label>
+      <label class="slot" data-slot="2"><span class="frame"><svg viewBox="0 0 40 48" aria-hidden="true" style="transform:scaleX(-1)"><ellipse cx="21" cy="20" rx="9" ry="14" fill="#c99877"/><path d="M12 18c0-10 5-15 10-15s10 4 10 13c-4-4-7-5-10-4-2 1-6 3-10 6z" fill="#2b201a"/><path d="M6 48c2-9 7-12 15-12s13 3 14 12z" fill="#1f2d4d"/></svg><span class="add">Choose</span></span>Right side<input type="file" accept="image/*"></label>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <div class="row">
+        <button type="button" class="btn btn-primary" id="use-photos" disabled>Use these photos</button>
+        <button type="button" class="btn btn-ghost" id="remove-photos" disabled>Remove photos</button>
+      </div>
+      <p class="note" id="photo-status" role="status"></p>
+    </div>
+    <table class="facts" id="face-table" hidden>
+      <caption class="sr">What we read from your photos</caption>
+      <tbody>
+        <tr><th scope="row">Hair length</th><td>Short</td></tr>
+        <tr><th scope="row">Hair colour</th><td><span class="swatch" style="background:#3b2a20"></span>Dark brown · #3b2a20</td></tr>
+        <tr><th scope="row">Skin</th><td><span class="swatch" style="background:#c58c6a"></span>#c58c6a</td></tr>
+      </tbody>
+    </table>
+    <div class="actions">
+      <button type="button" class="btn btn-ghost wide" data-step-go="3" id="skip">Skip for now</button>
+      <p class="lock"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Photos stay in this browser. Nothing is uploaded.</p>
+    </div>
+  </section>
+
+  <!-- Step 3 -->
+  <section class="step" data-panel="3" aria-labelledby="s3h" hidden>
+    <h1 id="s3h">Now, <em>try something on</em>.</h1>
+    <p class="lede">Open a product page that has a size chart, then read it. We pick your size and dress the avatar.</p>
+    <div class="summary-card">
+      <dl class="num">
+        <dt>Avatar</dt><dd>178 cm · chest 98 · waist 84</dd>
+        <dt>Face</dt><dd id="face-summary">Not added</dd>
+      </dl>
+    </div>
+    <button type="button" class="btn btn-primary wide" data-read>Read this page</button>
+    <p class="note" style="margin-top:10px">Tops only for now. Pages need a body-measurement size chart.</p>
+  </section>
+</main>
+
+<!-- ================= FITTING ROOM ================= -->
+<main id="room" class="room">
+  <!-- Product -->
+  <article class="card product" aria-labelledby="p-name">
+    <div class="thumb" aria-hidden="true">
+      <svg viewBox="0 0 48 44"><path d="M15 3q9 5 18 0l13 7-5 10-5-2v24H12V18l-5 2-5-10z" fill="#1f2d4d"/><path d="M19 4q5 4 10 0" stroke="#4a5a80" stroke-width="1.4" fill="none"/></svg>
+    </div>
+    <div>
+      <h1 id="p-name">Everyday Crew Tee</h1>
+      <p class="meta"><span class="swatch" style="background:#1f2d4d"></span>Navy · 100% cotton jersey · 180 gsm</p>
+    </div>
+    <div class="foot">
+      <p class="note" id="status" role="status">From shop.example · just now</p>
+      <button type="button" class="read" data-read>
+        <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13.5 8A5.5 5.5 0 1 1 11.9 4.1M13.5 2.5v3h-3"/></svg>
+        Read this page
+      </button>
+    </div>
+  </article>
+
+  <!-- Avatar -->
+  <section class="card stage" aria-label="Your avatar wearing the Everyday Crew Tee">
+    <div class="floor" id="stage" data-view="front" data-motion="idle">
+      <fieldset class="motion">
+        <legend>Motion</legend>
+        <label class="chip"><input type="radio" name="motion" value="idle" checked><span>Still</span></label>
+        <label class="chip"><input type="radio" name="motion" value="walk"><span>Walk</span></label>
+        <label class="chip"><input type="radio" name="motion" value="turn"><span>Turn 360°</span></label>
+        <label class="chip"><input type="radio" name="motion" value="armsUp"><span>Arms up</span></label>
+      </fieldset>
+      <svg class="avatar" viewBox="0 -30 200 420" role="img" aria-label="Avatar silhouette in a navy crew-neck t-shirt">
+        <g class="fig"><g class="bob">
+          <!-- legs -->
+          <path d="M71 196h58l4 172h-27l-6-128-6 128H67z" fill="#b5a895"/>
+          <path d="M100 240v120" stroke="#9f927f" stroke-width="1.2"/>
+          <ellipse cx="80" cy="372" rx="15" ry="6" fill="#2f2722"/>
+          <ellipse cx="120" cy="372" rx="15" ry="6" fill="#2f2722"/>
+          <!-- arms: sleeve + forearm rotate together about the shoulder -->
+          <g class="arm l">
+            <path d="M58 140c-4 26-7 48-9 70" stroke="#d2a283" stroke-width="13" stroke-linecap="round" fill="none"/>
+            <circle cx="49" cy="214" r="7.5" fill="#c99877"/>
+            <path d="M64 88l14 10-8 48-24-6z" fill="#1f2d4d"/>
+          </g>
+          <g class="arm r">
+            <path d="M142 140c4 26 7 48 9 70" stroke="#d2a283" stroke-width="13" stroke-linecap="round" fill="none"/>
+            <circle cx="151" cy="214" r="7.5" fill="#c99877"/>
+            <path d="M136 88l-14 10 8 48 24-6z" fill="#1f2d4d"/>
+          </g>
+          <!-- neck + tee body -->
+          <rect x="91" y="68" width="18" height="20" rx="6" fill="#c99877"/>
+          <path d="M78 82q22 14 44 0l16 8-6 38 1 74H67l1-74-6-38z" fill="#1f2d4d"/>
+          <path class="neckline" d="M84 84q16 12 32 0" stroke="#3f5079" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M70 196h60" stroke="#17223c" stroke-width="2"/>
+          <!-- head -->
+          <ellipse cx="100" cy="44" rx="21" ry="26" fill="#d2a283"/>
+          <path d="M79 40c0-17 9-25 21-25s21 8 21 25c-5-9-12-12-21-12s-16 3-21 12z" fill="#2b201a"/>
+          <ellipse class="back-hair" cx="100" cy="42" rx="22" ry="25" fill="#2b201a"/>
+        </g></g>
+      </svg>
+    </div>
+    <div class="views" role="group" aria-label="Camera view">
+      <button type="button" data-view="front" aria-pressed="true">Front</button>
+      <button type="button" data-view="side" aria-pressed="false">Side</button>
+      <button type="button" data-view="back" aria-pressed="false">Back</button>
+      <button type="button" data-view="three" aria-pressed="false" aria-label="Three-quarter">¾</button>
+    </div>
+    <p class="stage-status" id="avatar-status" role="status">Built from your measurements · no face photos yet</p>
+  </section>
+
+  <!-- Verdict + fit -->
+  <section class="card" aria-labelledby="v-head">
+    <div class="verdict">
+      <h2 id="v-head">Your size <span class="size" id="v-size">M</span><span class="flag" id="v-flag">Recommended</span></h2>
+      <p class="say" id="v-say">Comfortable through the chest and waist, a touch close across the shoulders. Length lands right at the hip.</p>
+      <fieldset>
+        <legend>Try another size</legend>
+        <div class="chips" id="sizes"></div>
+      </fieldset>
+    </div>
+    <div class="fitbar">
+      <h3>Fit by body region</h3>
+      <div class="axis" aria-hidden="true"><span>tight</span><span>snug</span><span>good</span><span>loose</span></div>
+      <div id="regions"></div>
+    </div>
+    <details class="fabric">
+      <summary>Fabric used in the simulation</summary>
+      <table class="facts num">
+        <caption class="sr">Fabric used in the simulation</caption>
+        <tbody>
+          <tr><th scope="row">Composition</th><td>100% cotton</td></tr>
+          <tr><th scope="row">Construction</th><td>Single jersey knit</td></tr>
+          <tr><th scope="row">Weight</th><td>180 g/m²</td></tr>
+          <tr><th scope="row">Garment chest</th><td id="g-chest">109 cm (size top 101 + 8 ease)</td></tr>
+          <tr><th scope="row">Stretch</th><td>42 N/m</td></tr>
+          <tr><th scope="row">Bend</th><td>3e-6 N·m</td></tr>
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  <!-- Profile: measurements + face, editable in place -->
+  <section class="profile-wrap" id="room-profile" aria-labelledby="pr-head">
+    <h2 id="pr-head">Your profile</h2>
+    <div class="card">
+      <details class="profile">
+        <summary><span>My measurements<small class="num">178 cm · chest 98 · waist 84 · hip 98 · shoulder 46</small></span></summary>
+        <div class="inner">
+          <p>Change a number and we rebuild your avatar and recheck the fit.</p>
+          <button type="button" class="btn btn-ghost wide" data-edit="1">Edit measurements</button>
+        </div>
+      </details>
+      <details class="profile">
+        <summary><span>Face photos<small id="face-mini">Not added · optional</small></span></summary>
+        <div class="inner">
+          <p>Front, left and right photos. They stay in this browser.</p>
+          <button type="button" class="btn btn-ghost wide" data-edit="2">Add or change photos</button>
+        </div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+  // --- screens + mockup switch ---
+  let editing = false;
+  function screen(name) {
+    $('#setup').hidden = name !== 'setup';
+    $('#room').hidden = name !== 'room';
+    $('#to-profile').hidden = name !== 'room';
+    $$('[data-screen]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.screen === name));
+    window.scrollTo(0, 0);
+  }
+  $$('[data-screen]').forEach((b) => b.addEventListener('click', () => { editing = false; step(1); screen(b.dataset.screen); }));
+  $('#to-profile').addEventListener('click', () => $('#room-profile').scrollIntoView({ behavior: 'smooth' }));
+
+  // --- setup steps ---
+  let done = new Set();
+  function step(n) {
+    $$('[data-panel]').forEach((p) => (p.hidden = +p.dataset.panel !== n));
+    $$('[data-step]').forEach((b) => {
+      const k = +b.dataset.step;
+      b.toggleAttribute('aria-current', k === n);
+      if (k === n) b.setAttribute('aria-current', 'step');
+      b.classList.toggle('done', done.has(k) && k !== n);
+    });
+    $('#save').textContent = editing ? 'Save and rebuild avatar' : 'Save and build my avatar';
+    $(`[data-panel="${n}"] h1`).focus?.();
+  }
+  $$('[data-step]').forEach((b) => b.addEventListener('click', () => step(+b.dataset.step)));
+  $$('[data-step-go]').forEach((b) => b.addEventListener('click', () => { done.add(2); step(+b.dataset.stepGo); }));
+  $$('[data-edit]').forEach((b) => b.addEventListener('click', () => { editing = true; done = new Set([1, 2]); screen('setup'); step(+b.dataset.edit); }));
+
+  $('#me').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const missing = $$('#me input[required]').filter((i) => { const bad = !i.value; i.setAttribute('aria-invalid', bad); return bad; });
+    $('#errors').textContent = missing.length ? `Add your ${missing.map((i) => $(`label[for="${i.id}"]`).textContent.toLowerCase()).join(', ')}.` : '';
+    if (missing.length) return;
+    done.add(1);
+    if (editing) { screen('room'); $('#avatar-status').textContent = 'Avatar rebuilt from your new measurements'; return; }
+    step(2);
+  });
+
+  // --- face photos (mock: camera fills all three slots; files fill one each) ---
+  const filled = [false, false, false];
+  function syncSlots() {
+    $$('.slot').forEach((s, i) => { s.classList.toggle('filled', filled[i]); $('.add', s).textContent = filled[i] ? 'Added' : 'Choose'; });
+    $('#use-photos').disabled = !filled.every(Boolean);
+    $('#remove-photos').disabled = !filled.some(Boolean) && $('#face-table').hidden;
+  }
+  $('#camera').addEventListener('click', () => { filled.fill(true); syncSlots(); $('#photo-status').className = 'note'; $('#photo-status').textContent = 'Three photos taken. Check them, then use them.'; });
+  $$('.slot input').forEach((inp, i) => inp.addEventListener('change', () => { if (inp.files[0]) { filled[i] = true; syncSlots(); } }));
+  $('#use-photos').addEventListener('click', () => {
+    $('#photo-status').textContent = 'Photos analysed. Everything ran in this browser.';
+    $('#face-table').hidden = false; $('#use-photos').disabled = true; $('#use-photos').textContent = 'Photos in use'; $('#remove-photos').disabled = false;
+    $('#skip').textContent = 'Continue'; $('#face-summary').textContent = 'Added · hair short, dark brown';
+    $('#face-mini').textContent = '3 photos added'; $('#avatar-status').textContent = 'Built from your measurements and face photos';
+    done.add(2);
+  });
+  $('#remove-photos').addEventListener('click', () => {
+    filled.fill(false); $('#face-table').hidden = true; $('#use-photos').textContent = 'Use these photos'; syncSlots();
+    $('#photo-status').textContent = 'Photos removed.'; $('#skip').textContent = 'Skip for now';
+    $('#face-summary').textContent = 'Not added'; $('#face-mini').textContent = 'Not added · optional';
+    $('#avatar-status').textContent = 'Built from your measurements · no face photos yet';
+  });
+
+  // --- read page ---
+  $$('[data-read]').forEach((b) => b.addEventListener('click', () => {
+    done.add(3); screen('room');
+    $('#status').textContent = 'Reading the page…';
+    setTimeout(() => ($('#status').textContent = 'From shop.example · just now'), 700);
+  }));
+
+  // --- avatar view + motion ---
+  const stage = $('#stage');
+  $$('.views button').forEach((b) => b.addEventListener('click', () => {
+    stage.dataset.view = b.dataset.view;
+    $$('.views button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  }));
+  $$('input[name="motion"]').forEach((r) => r.addEventListener('change', () => (stage.dataset.motion = r.value)));
+
+  // --- sizes: sample chart (body cm) and fit per region ---
+  const SIZES = {
+    XS: { chest: [84, 89], waist: [70, 74], shoulder: [40, 41], height: [160, 166], fit: ['tight', 'tight', 'tight', 'snug'], say: 'Too small. It pulls across the chest, waist and shoulders, and rides above the hip.' },
+    S:  { chest: [90, 95], waist: [75, 79], shoulder: [42, 43], height: [166, 172], fit: ['tight', 'tight', 'tight', 'good'], say: 'Tight through the chest, waist and shoulders. Only worth it if you like a fitted, stretched look.' },
+    M:  { chest: [96, 101], waist: [80, 86], shoulder: [44, 46], height: [172, 180], fit: ['good', 'good', 'snug', 'good'], say: 'Comfortable through the chest and waist, a touch close across the shoulders. Length lands right at the hip.' },
+    L:  { chest: [102, 107], waist: [87, 93], shoulder: [47, 48], height: [180, 186], fit: ['loose', 'good', 'good', 'good'], say: 'Easier across the shoulders, but roomy in the chest. A relaxed fit, slightly long.' },
+    XL: { chest: [108, 113], waist: [94, 100], shoulder: [49, 50], height: [186, 192], fit: ['loose', 'loose', 'good', 'loose'], say: 'Oversized on you. Loose through the body and longer than the hip.' },
+    XXL:{ chest: [114, 120], waist: [101, 108], shoulder: [51, 52], height: [192, 198], fit: ['loose', 'loose', 'loose', 'loose'], say: 'Much too big. The tee hangs off the shoulders and past the hip.' },
+  };
+  const ME = { chest: 98, waist: 84, shoulder: 46, height: 178 }, REC = 'M';
+  const REGIONS = [['Chest', 'chest'], ['Waist', 'waist'], ['Shoulder', 'shoulder'], ['Length', 'height']];
+  const POS = { tight: 12.5, snug: 37.5, good: 62.5, loose: 87.5 };
+  const COL = { tight: 'var(--tight)', snug: 'var(--snug)', good: 'var(--good)', loose: 'var(--loose)' };
+
+  $('#sizes').innerHTML = Object.keys(SIZES).map((s) =>
+    `<label class="chip"><input type="radio" name="size" value="${s}"${s === REC ? ' checked' : ''}><span>${s}</span></label>`).join('');
+  function showSize(s, animate) {
+    const z = SIZES[s];
+    const v = $('#v-size'); v.textContent = s;
+    if (animate) { v.classList.remove('pop'); void v.offsetWidth; v.classList.add('pop'); }
+    $('#v-flag').textContent = s === REC ? 'Recommended' : `We suggest ${REC}`;
+    $('#v-flag').classList.toggle('off', s !== REC);
+    $('#v-say').textContent = z.say;
+    $('#g-chest').textContent = `${z.chest[1] + 8} cm (size top ${z.chest[1]} + 8 ease)`;
+    $('#regions').innerHTML = REGIONS.map(([name, k], i) => {
+      const st = z.fit[i], unit = k === 'height' ? 'height ' : '';
+      return `<div class="region" role="group" aria-label="${name}: ${st}">
+        <span class="name">${name}</span><span class="st ${st}">${st}</span>
+        <span class="track" aria-hidden="true"><i></i><i></i><i></i><i></i><b style="left:${POS[st]}%;background:${COL[st]}"></b></span>
+        <span class="detail num">You ${unit}${ME[k]} cm · size ${s} ${z[k][0]}–${z[k][1]} cm</span></div>`;
+    }).join('');
+  }
+  $('#sizes').addEventListener('change', (e) => showSize(e.target.value, true));
+  showSize(REC, false);
+</script>
+</body>
+</html>

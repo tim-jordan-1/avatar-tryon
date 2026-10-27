@@ -1,0 +1,218 @@
+// MakeHuman head shaped and textured from the photos (no hair). Browser only (three.js).
+import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { similarity, apply, unapply } from './fuse.js';
+import { fitWarp } from './rbf.js';
+import { FACE_SKIN } from './hair.js';
+import { parseObj, compact, applyTarget } from './mhavatar.js';
+
+// MakeHuman base mesh (CC0 asset), pinned to a commit.
+const MH = 'https://cdn.jsdelivr.net/gh/makehumancommunity/makehuman@a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/3dobjs/base.obj';
+const BODY_SKIN = 2;
+const NECK_CUT = 0.85; // keep the mesh above this fraction of body height: head and neck, no shoulders
+
+const v3 = (a, i) => [a[i * 3], a[i * 3 + 1], a[i * 3 + 2]];
+
+const TARGETS = 'https://cdn.jsdelivr.net/gh/makehumancommunity/makehuman@a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/targets/macrodetails/';
+// MakeHuman's default young adult of one sex: the three ethnic young targets at 1/3 each, plus the universal one.
+const SEX_TARGETS = (sex) => [...['african', 'asian', 'caucasian'].map((e) => [`${e}-${sex}-young.target`, 1 / 3]), [`universal-${sex}-young-averagemuscle-averageweight.target`, 1]];
+
+let objText = null;
+// Load the base mesh (with a sex's shape targets applied) and cut out the head and neck; eyes as separate meshes.
+export async function loadHead(sex = null) {
+  objText ??= await (await fetch(MH)).text();
+  const { v, groups } = parseObj(objText);
+  if (sex) {
+    for (const [file, w] of SEX_TARGETS(sex)) applyTarget(v, await (await fetch(TARGETS + file)).text(), w);
+  }
+  const body = compact(v, groups.body), bp = body.pos, bi = body.idx;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 1; i < bp.length; i += 3) { lo = Math.min(lo, bp[i]); hi = Math.max(hi, bp[i]); }
+  const cut = lo + NECK_CUT * (hi - lo), map = new Map(), pos = [], idx = [], toBody = [], restIdx = [], restVerts = new Set();
+  for (let t = 0; t < bi.length; t += 3) {
+    const tri = [bi[t], bi[t + 1], bi[t + 2]];
+    if (!tri.every((i) => bp[i * 3 + 1] > cut)) { restIdx.push(...tri); tri.forEach((i) => restVerts.add(i)); continue; }
+    for (const i of tri) {
+      if (!map.has(i)) { map.set(i, pos.length / 3); toBody.push(i); pos.push(...v3(bp, i)); }
+      idx.push(map.get(i));
+    }
+  }
+  // Head vertices also used by the rest of the body: they must land exactly where the body puts them.
+  const seam = new Set(toBody.flatMap((b, h) => (restVerts.has(b) ? [h] : [])));
+  const eyes = ['helper-r-eye', 'helper-l-eye'].map((n) => { const e = compact(v, groups[n]); return { pos: e.pos, idx: e.idx }; });
+  // objToBody: original base.obj vertex number -> body vertex index (for hair proxies fitted to the body).
+  return { pos, idx, eyes, height: hi - lo, neckY: cut, body: { pos: bp, idx: bi, restIdx, objToBody: body.map }, toBody, seam, sex, objV: v };
+}
+
+function normals(pos, idx) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g.attributes.normal.array;
+}
+
+// A plain painted eye (pupil, brown iris, white) on a MakeHuman eye mesh facing +z. pos: flat array.
+export function eyeMesh(pos, idx) {
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  g.computeBoundingBox();
+  const c = g.boundingBox.getCenter(new THREE.Vector3()), r = g.boundingBox.max.z - c.z, col = [];
+  for (let i = 0; i < pos.length; i += 3) {
+    const k = pos[i + 2] > c.z ? Math.hypot(pos[i] - c.x, pos[i + 1] - c.y) / r : 9;
+    col.push(...(k < 0.2 ? [0.02, 0.02, 0.02] : k < 0.45 ? [0.25, 0.15, 0.08] : [0.92, 0.9, 0.87]));
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.2 }));
+}
+
+// Render the bare head from the front and run the face landmarker on it: landmark index -> head vertex index.
+export function correspond(head, landmarker) {
+  const W = 512, H = 640, renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(W, H, false);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#202226');
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(head.pos, 3));
+  geo.setIndex(head.idx);
+  geo.computeVertexNormals();
+  scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#c99677', roughness: 0.6 })));
+  for (const e of head.eyes) scene.add(eyeMesh(e.pos, e.idx));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x665544, 1.6));
+  const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(0.3, 0.5, 1); scene.add(key);
+  geo.computeBoundingBox();
+  const b = geo.boundingBox, cx = (b.min.x + b.max.x) / 2, cy = (b.min.y + b.max.y) / 2, half = (b.max.y - b.min.y) * 0.62;
+  const cam = new THREE.OrthographicCamera(cx - half * W / H, cx + half * W / H, cy + half, cy - half, -100, 100);
+  cam.position.set(0, 0, 50);
+  renderer.render(scene, cam);
+  const lm = landmarker.detect(renderer.domElement).faceLandmarks[0];
+  renderer.dispose();
+  if (!lm) throw new Error('No face found on the MakeHuman head render');
+
+  const n = normals(head.pos, head.idx), nv = head.pos.length / 3, used = new Set(), out = new Map();
+  const radius = (b.max.x - b.min.x) * 0.012;
+  for (let i = 0; i < 468; i++) { // 468-477 are the irises: they sit on the eye meshes, not the head
+    const x = cam.left + lm[i].x * (cam.right - cam.left), y = cam.top - lm[i].y * (cam.top - cam.bottom);
+    let best = -1, bestZ = -Infinity, near = -1, nd = Infinity;
+    for (let v = 0; v < nv; v++) {
+      if (n[v * 3 + 2] < 0.05) continue;
+      const d = Math.hypot(head.pos[v * 3] - x, head.pos[v * 3 + 1] - y);
+      if (d < nd) { nd = d; near = v; }
+      if (d < radius && head.pos[v * 3 + 2] > bestZ) { bestZ = head.pos[v * 3 + 2]; best = v; }
+    }
+    const v = best >= 0 ? best : near;
+    if (v >= 0 && !used.has(v)) { used.add(v); out.set(i, v); }
+  }
+  return out;
+}
+
+// Everything below is in the fused photo frame (pixels, y up, z toward the camera); the caller scales it.
+// deform: optional (point in the MakeHuman frame) -> point in the output frame (the measured body). Without it,
+// the head stays in the photo frame on its own; with it, the whole body is built and the head sits on it.
+// tint: optional (output point) -> [r, g, b] factor for the skin colour, or null to leave the skin as it is (fit map).
+export function buildTwin({ head, corr, res, fused, skinHex, mmPerPx, photos, deform, tint }) {
+  const F = fused.points, views = fused.views, mm = 1 / mmPerPx;
+  const lmIdx = [...corr.keys()], src = lmIdx.map((i) => v3(head.pos, corr.get(i)));
+  const T = similarity(src, lmIdx.map((i) => F[i]));
+  let pos = [];
+  for (let v = 0; v < head.pos.length / 3; v++) pos.push(...apply(T, v3(head.pos, v)));
+
+  // Warp: landmark vertices move onto the fused face; the back of the head and the neck base stay put.
+  const earZ = (F[234][2] + F[454][2]) / 2, nv = pos.length / 3;
+  let minY = Infinity;
+  for (let v = 0; v < nv; v++) minY = Math.min(minY, pos[v * 3 + 1]);
+  const centres = [], disp = [];
+  // Drop matches that would move a vertex far more than the rest: those are wrong matches, not face shape.
+  const moves = lmIdx.map((i) => { const q = v3(pos, corr.get(i)); return { q, d: F[i].map((x, k) => x - q[k]) }; });
+  const med = moves.map((m) => Math.hypot(...m.d)).sort((a, b) => a - b)[moves.length >> 1];
+  const keep = moves.filter((m) => Math.hypot(...m.d) <= Math.max(3 * med, 6 * mm));
+  for (const m of keep) { centres.push(m.q); disp.push(m.d); }
+  for (let v = 0; v < nv; v += 9) {
+    const q = v3(pos, v);
+    // Anchors well behind the ears: closer ones crease the skull where the moving face meets them.
+    if (q[2] < earZ - 55 * mm || q[1] < minY + 12 * mm) { centres.push(q); disp.push([0, 0, 0]); }
+  }
+  const warp = fitWarp(centres, disp);
+  let maxMove = 0;
+  for (let v = 0; v < nv; v++) {
+    const q = v3(pos, v), d = warp(q);
+    maxMove = Math.max(maxMove, Math.hypot(...d));
+    pos[v * 3] += d[0]; pos[v * 3 + 1] += d[1]; pos[v * 3 + 2] += d[2];
+  }
+  const eyes = head.eyes.map((e) => {
+    const p = [];
+    for (let v = 0; v < e.pos.length / 3; v++) p.push(...apply(T, v3(e.pos, v)));
+    const c = [0, 1, 2].map((k) => p.filter((_, i) => i % 3 === k).reduce((a, b) => a + b, 0) / (p.length / 3)), d = warp(c);
+    return { pos: p.map((x, i) => x + d[i % 3]), idx: e.idx }; // move eyes rigidly with the warp at their centre
+  });
+
+  // Photo projection: a fused-frame point into view v's normalised image coordinates.
+  const project = (v, q) => { const p = unapply(views[v].T, q); return [p[0] / res[v].w, -p[1] / res[v].h]; };
+  const label = (v, [x, y]) => {
+    const px = Math.min(res[v].w - 1, Math.max(0, Math.round(x * res[v].w))), py = Math.min(res[v].h - 1, Math.max(0, Math.round(y * res[v].h)));
+    return res[v].mask[py * res[v].w + px];
+  };
+  const cams = views.map((v) => v.camDir);
+  const bestView = (n) => { let b = 0, bd = -2; cams.forEach((c, v) => { const d = n[0] * c[0] + n[1] * c[1] + n[2] * c[2]; if (d > bd) { bd = d; b = v; } }); return [b, bd]; };
+
+  // Output positions: the photo frame, or back to the MakeHuman frame and onto the measured body.
+  const outHead = Array.from({ length: nv }, (_, v) => (!deform ? v3(pos, v)
+    : deform(head.seam.has(v) ? v3(head.body.pos, head.toBody[v]) : unapply(T, v3(pos, v)))));
+  const outOf = (p) => (deform ? deform(unapply(T, p)) : p);
+
+  // Face texturing: each triangle from the photo that sees it best, where that photo shows skin there.
+  // fromBody: the body vertex each output vertex comes from, so a caller can skin the twin with the body's weights.
+  const vn = normals(pos, head.idx), groups = [[], [], [], []], uvs = [[], [], [], []], fromBody = [[], [], [], []];
+  let photoTris = 0;
+  for (let t = 0; t < head.idx.length; t += 3) {
+    const tri = [head.idx[t], head.idx[t + 1], head.idx[t + 2]];
+    const nrm = [0, 1, 2].map((k) => tri.reduce((s, i) => s + vn[i * 3 + k], 0) / 3), [v, d] = bestView(nrm);
+    const ctr = [0, 1, 2].map((k) => tri.reduce((s, i) => s + pos[i * 3 + k], 0) / 3), lab = label(v, project(v, ctr));
+    const g = d > 0.2 && (lab === FACE_SKIN || lab === BODY_SKIN) ? v : 3;
+    if (g < 3) photoTris++;
+    for (const i of tri) { groups[g].push(...outHead[i]); fromBody[g].push(head.toBody[i]); const uv = g < 3 ? project(g, v3(pos, i)) : [0, 0]; uvs[g].push(uv[0], 1 - uv[1]); }
+  }
+  if (deform) { // the rest of the body, in the skin tone
+    const bp = head.body.pos, cache = new Map(), at = (i) => { if (!cache.has(i)) cache.set(i, deform(v3(bp, i), i)); return cache.get(i); };
+    for (const i of head.body.restIdx) { groups[3].push(...at(i)); uvs[3].push(0, 0); fromBody[3].push(i); }
+  }
+  const skinGeo = new THREE.BufferGeometry(), allPos = groups.flat(), allUv = uvs.flat();
+  skinGeo.setAttribute('position', new THREE.Float32BufferAttribute(allPos, 3));
+  skinGeo.setAttribute('uv', new THREE.Float32BufferAttribute(allUv, 2));
+  let start = 0;
+  groups.forEach((g, i) => { skinGeo.addGroup(start, g.length / 3, i); start += g.length / 3; });
+  // Smooth shading across the per-view split: average normals by position.
+  const smooth = mergeVertices(skinGeo.clone().deleteAttribute('uv'), 1e-6); smooth.computeVertexNormals();
+  const nmap = new Map(), sp = smooth.attributes.position.array, sn = smooth.attributes.normal.array;
+  for (let i = 0; i < sp.length; i += 3) nmap.set(`${sp[i]},${sp[i + 1]},${sp[i + 2]}`, [sn[i], sn[i + 1], sn[i + 2]]);
+  skinGeo.setAttribute('normal', new THREE.Float32BufferAttribute(allPos.flatMap((_, i) => (i % 3 ? [] : nmap.get(`${Math.fround(allPos[i])},${Math.fround(allPos[i + 1])},${Math.fround(allPos[i + 2])}`) ?? [0, 0, 1])), 3));
+  if (tint) {
+    const col = new Float32Array(allPos.length);
+    for (let i = 0; i < allPos.length; i += 3) col.set(tint([allPos[i], allPos[i + 1], allPos[i + 2]]) ?? [1, 1, 1], i);
+    skinGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  }
+  const tex = photos.map((p) => { const t = new THREE.CanvasTexture(p); t.colorSpace = THREE.SRGBColorSpace; return t; });
+  const mats = [...tex.map((t) => new THREE.MeshStandardMaterial({ map: t, roughness: 0.65 })), new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.65, vertexColors: !!tint })];
+  const group = new THREE.Group();
+  group.add(new THREE.Mesh(skinGeo, mats));
+  for (const e of eyes) { // eyes take the front photo
+    const g = new THREE.BufferGeometry(), uv = [];
+    for (let v = 0; v < e.pos.length / 3; v++) { const p = project(0, v3(e.pos, v)); uv.push(p[0], 1 - p[1]); }
+    const ep = []; for (let v = 0; v < e.pos.length / 3; v++) ep.push(...outOf(v3(e.pos, v)));
+    g.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(e.idx);
+    g.computeVertexNormals();
+    group.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex[0], roughness: 0.2 })));
+  }
+
+  // For hair presets (MakeHuman proxies): a base.obj vertex's warped position in MakeHuman axes, and the map from
+  // MakeHuman axes to this twin's output frame.
+  const headOfBody = new Map(head.toBody.map((b, h) => [b, h]));
+  const basePos = (i) => {
+    const b = head.body.objToBody.get(i);
+    if (b === undefined) return v3(head.objV, i); // helper vertices (long-hair guides) keep their base position
+    const h = headOfBody.get(b);
+    return h === undefined ? v3(head.body.pos, b) : unapply(T, v3(pos, h));
+  };
+  const fromMH = (p) => (deform ? deform(p) : apply(T, p));
+  return { group, basePos, fromMH, bodyIndex: Int32Array.from(fromBody.flat()), stats: { landmarks: keep.length, dropped: moves.length - keep.length, medianMoveMm: med * mmPerPx, maxWarpMm: maxMove * mmPerPx, photoTris, tris: head.idx.length / 3 } };
+}

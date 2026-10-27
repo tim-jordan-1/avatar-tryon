@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Everyday Crew Tee · Demo Store</title>
+<meta property="og:title" content="Everyday Crew Tee">
+<!-- Example product page for the Avatar Try-On PoC. Fictional store and product; no real brand. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "Everyday Crew Tee",
+  "description": "A regular-fit crew-neck t-shirt in soft single jersey with a touch of stretch.",
+  "color": "Slate Blue",
+  "material": "95% cotton, 5% elastane",
+  "category": "Men > Tops > T-shirts",
+  "offers": { "@type": "Offer", "price": "39.00", "priceCurrency": "AUD", "availability": "https://schema.org/InStock" }
+}
+</script>
+<style>
+  :root { --bg: #fbfaf7; --ink: #1d1d1f; --muted: #5e5c57; --line: #e4e1da; --accent: #2f5d50; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--line); font-weight: 700; letter-spacing: .04em; }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+  .photo { background: #eceae4; border-radius: 12px; aspect-ratio: 4 / 5; display: flex; align-items: center; justify-content: center; }
+  h1 { margin: 0 0 6px; font-size: 30px; }
+  .price { font-size: 20px; margin: 0 0 16px; }
+  .swatch { display: inline-block; width: 18px; height: 18px; border-radius: 50%; background: slateblue; vertical-align: middle; margin-right: 6px; }
+  .sizes { display: flex; gap: 8px; margin: 12px 0 20px; flex-wrap: wrap; }
+  .sizes button { min-width: 48px; min-height: 44px; border: 1px solid var(--line); background: #fff; border-radius: 8px; font: inherit; }
+  .add { width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; }
+  h2 { font-size: 16px; margin: 28px 0 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+  .note { color: var(--muted); font-size: 14px; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>DEMO STORE</header>
+<main>
+  <div class="photo">
+    <svg width="70%" viewBox="0 0 200 200" role="img" aria-label="Slate blue crew-neck t-shirt">
+      <path d="M70 20 L40 32 L10 70 L35 88 L50 72 L50 185 L150 185 L150 72 L165 88 L190 70 L160 32 L130 20 Q100 42 70 20 Z" fill="slateblue" stroke="#3f3a7a" stroke-width="2"/>
+    </svg>
+  </div>
+  <section>
+    <h1>Everyday Crew Tee</h1>
+    <p class="price">A$39.00</p>
+    <p><span class="swatch"></span>Colour: Slate Blue</p>
+    <div class="sizes" aria-label="Sizes">
+      <button type="button">XS</button><button type="button">S</button><button type="button">M</button><button type="button">L</button><button type="button">XL</button><button type="button">XXL</button>
+    </div>
+    <button type="button" class="add">Add to bag</button>
+
+    <h2>Details</h2>
+    <ul class="note">
+      <li>Regular fit, crew neck, short sleeves</li>
+      <li>Composition: 95% cotton, 5% elastane</li>
+      <li>Single jersey knit, 180 gsm</li>
+    </ul>
+
+    <h2>Size guide</h2>
+    <p class="note">Body measurements in cm.</p>
+    <table>
+      <thead><tr><th>Size</th><th>XS</th><th>S</th><th>M</th><th>L</th><th>XL</th><th>XXL</th></tr></thead>
+      <tbody>
+        <tr><td>Chest (cm)</td><td>80 - 88</td><td>88 - 96</td><td>96 - 104</td><td>104 - 112</td><td>112 - 120</td><td>120 - 128</td></tr>
+        <tr><td>Waist (cm)</td><td>66 - 74</td><td>74 - 82</td><td>82 - 90</td><td>90 - 98</td><td>98 - 106</td><td>106 - 114</td></tr>
+        <tr><td>Hip (cm)</td><td>82 - 90</td><td>90 - 98</td><td>98 - 106</td><td>106 - 114</td><td>114 - 122</td><td>122 - 130</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+</body>
+</html>

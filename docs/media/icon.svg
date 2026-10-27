@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Avatar Try-On mark: a figure wearing a t-shirt. 96x96 artwork inside 16 px padding (Chrome Web Store 128 icon rule). -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a7a63"/>
+      <stop offset="1" stop-color="#2f5d50"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="96" height="96" rx="24" fill="url(#g)"/>
+  <circle cx="64" cy="37" r="10.5" fill="#fbfaf8" fill-opacity="0.9"/>
+  <path d="M54 51 Q64 60 74 51 L88 55 L99 70 L89 78 L84 72 L84 101 L44 101 L44 72 L39 78 L29 70 L40 55 Z"
+        fill="#fbfaf8" stroke="#fbfaf8" stroke-width="4" stroke-linejoin="round"/>
+</svg>

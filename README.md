@@ -35,4 +35,3 @@ To load the extension, read `extension/README.md`. To make the Chrome Web Store 
 
 - Privacy policy: https://tim-jordan-1.github.io/avatar-tryon/privacy-policy
 - Third-party licences: `extension/NOTICES.md`
-- Support: lix5821@gmail.com

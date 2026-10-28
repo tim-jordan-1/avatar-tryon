@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Avatar Try-On: see how a t-shirt fits before you buy it</title>
+  <meta name="description" content="A Chrome extension that shows how a t-shirt from the shop page you have open fits a 3D avatar built from your own measurements. Free, open source, and it runs on your computer.">
+  <link rel="canonical" href="https://tim-jordan-1.github.io/avatar-tryon/">
+  <meta name="theme-color" content="#efede8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d0e11" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="media/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="media/icon-128.png" type="image/png" sizes="128x128">
+  <link rel="apple-touch-icon" href="media/icon-128.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Avatar Try-On">
+  <meta property="og:title" content="Avatar Try-On: see how a t-shirt fits before you buy it">
+  <meta property="og:description" content="See how a t-shirt from the shop page you have open fits a 3D avatar built from your own measurements.">
+  <meta property="og:url" content="https://tim-jordan-1.github.io/avatar-tryon/">
+  <meta property="og:image" content="https://tim-jordan-1.github.io/avatar-tryon/media/og-image.jpg">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="800">
+  <meta property="og:image:alt" content="A demo shop page with a t-shirt, and the Avatar Try-On side panel showing a 3D avatar wearing it.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Avatar Try-On: see how a t-shirt fits before you buy it">
+  <meta name="twitter:description" content="See how a t-shirt from the shop page you have open fits a 3D avatar built from your own measurements.">
+  <meta name="twitter:image" content="https://tim-jordan-1.github.io/avatar-tryon/media/og-image.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="media/icon.svg" alt="" width="30" height="30">Avatar Try-On</a>
+      <nav class="topnav" aria-label="Site">
+        <a class="optional" href="#overview">Overview</a>
+        <a href="privacy-policy.html">Privacy</a>
+        <a href="https://github.com/tim-jordan-1/avatar-tryon">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <section class="hero" aria-labelledby="title">
+      <img class="hero-icon rise" src="media/icon.svg" alt="" width="128" height="128">
+      <div class="hero-text rise rise-2">
+        <h1 id="title">Avatar Try-On</h1>
+        <p class="summary">See how a t-shirt from the shop page you have open fits a 3D avatar built from your own measurements.</p>
+        <ul class="chips" aria-label="At a glance">
+          <li>Shopping</li>
+          <li>Free</li>
+          <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Runs on-device</li>
+          <li class="num">Version 1.0.0</li>
+        </ul>
+      </div>
+      <div class="cta rise rise-3">
+        <a class="button" data-install href="https://github.com/tim-jordan-1/avatar-tryon#readme">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5 2.5 10 7 15M13 5l4.5 5-4.5 5"/></svg>
+          <span data-install-label>Install from source</span>
+        </a>
+        <p class="soon" data-store-soon>Chrome Web Store: coming soon</p>
+        <p class="phone-note">Needs Chrome on a computer</p>
+      </div>
+    </section>
+
+    <section class="gallery" aria-roledescription="carousel" aria-label="Demo video and screenshots">
+      <div class="viewer">
+        <div class="track" id="track" tabindex="0" aria-label="Media, use the left and right arrow keys to move">
+          <figure class="slide video-slide" aria-roledescription="slide" aria-label="1 of 5: demo video">
+            <video muted loop playsinline preload="metadata" poster="media/demo-poster.jpg" width="1280" height="800" aria-label="Demo: reading a shop page and trying the t-shirt on the avatar">
+              <source src="media/demo.webm" type="video/webm">
+              <source src="media/demo.mp4" type="video/mp4">
+              Your browser cannot play this video. <a href="media/demo.mp4">Download the demo video</a>.
+            </video>
+            <button class="play" type="button" aria-pressed="false" aria-label="Play demo video">
+              <svg class="i-play" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.5 4.6v10.8a.6.6 0 0 0 .92.5l8.4-5.4a.6.6 0 0 0 0-1L7.42 4.1a.6.6 0 0 0-.92.5Z"/></svg>
+              <svg class="i-pause" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><rect x="5" y="4" width="3.4" height="12" rx="1"/><rect x="11.6" y="4" width="3.4" height="12" rx="1"/></svg>
+            </button>
+          </figure>
+          <figure class="slide" aria-roledescription="slide" aria-label="2 of 5">
+            <img src="media/screenshot-1-shop-and-panel.webp" width="1280" height="800" alt="A demo shop page for a purple crew-neck tee. The Avatar Try-On side panel next to it shows a 3D avatar wearing the shirt, size M marked as the best fit, and chest and waist marked good.">
+          </figure>
+          <figure class="slide" aria-roledescription="slide" aria-label="3 of 5">
+            <img src="media/screenshot-2-avatar-close-up.webp" width="1280" height="800" loading="lazy" alt="Close-up of the avatar wearing the purple t-shirt, with buttons to make it idle, walk, turn or raise its arms, and to view it from the front, side, back or three-quarter angle.">
+          </figure>
+          <figure class="slide" aria-roledescription="slide" aria-label="4 of 5">
+            <img src="media/screenshot-3-fit-by-region.webp" width="1280" height="800" loading="lazy" alt="The Fit tab with size S picked. Chest and waist are marked tight and hip snug, and the panel suggests size M instead.">
+          </figure>
+          <figure class="slide" aria-roledescription="slide" aria-label="5 of 5">
+            <img src="media/screenshot-4-measurements.webp" width="1280" height="800" loading="lazy" alt="The Me tab with fields for height, chest, waist, hip, shoulder width, inseam and sex, a Save and rebuild avatar button, and a note that the data is saved in this browser only.">
+          </figure>
+        </div>
+        <button class="arrow prev" type="button" data-dir="-1" aria-controls="track" aria-label="Previous">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 4-6 6 6 6"/></svg>
+        </button>
+        <button class="arrow next" type="button" data-dir="1" aria-controls="track" aria-label="Next">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 4 6 6-6 6"/></svg>
+        </button>
+      </div>
+      <ul class="thumbs" aria-label="Choose media">
+        <li><button type="button" class="video-thumb" aria-label="Demo video" aria-current="true"><span><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 3.5v9a.5.5 0 0 0 .76.43l7.2-4.5a.5.5 0 0 0 0-.86l-7.2-4.5A.5.5 0 0 0 5 3.5Z"/></svg>Demo</span></button></li>
+        <li><button type="button" aria-label="Screenshot: shop page and panel"><img src="media/screenshot-1-shop-and-panel.webp" width="1280" height="800" loading="lazy" alt=""></button></li>
+        <li><button type="button" aria-label="Screenshot: avatar close-up"><img src="media/screenshot-2-avatar-close-up.webp" width="1280" height="800" loading="lazy" alt=""></button></li>
+        <li><button type="button" aria-label="Screenshot: fit by region"><img src="media/screenshot-3-fit-by-region.webp" width="1280" height="800" loading="lazy" alt=""></button></li>
+        <li><button type="button" aria-label="Screenshot: measurements"><img src="media/screenshot-4-measurements.webp" width="1280" height="800" loading="lazy" alt=""></button></li>
+      </ul>
+      <p class="gallery-status visually-hidden" id="status" aria-live="polite">1 of 5: demo video</p>
+    </section>
+
+    <div class="layout">
+      <div class="main">
+        <section id="overview" aria-labelledby="overview-title">
+          <h2 id="overview-title">Overview</h2>
+          <ul class="features">
+            <li><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 11.5 3.2 3.2L16 7.5"/></svg>Simulated cotton that hangs and moves on the body.</li>
+            <li><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 11.5 3.2 3.2L16 7.5"/></svg>A tight, snug, good or loose result at chest, waist and hip, for each size in the shop's size chart.</li>
+            <li><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 11.5 3.2 3.2L16 7.5"/></svg>Optional face photos give the avatar your skin tone and hair.</li>
+            <li><svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 11.5 3.2 3.2L16 7.5"/></svg>Everything runs on your computer. Your measurements and photos never leave your browser.</li>
+          </ul>
+          <p class="needs"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5M10 6.2v.1"/></svg><span><strong>What it works with.</strong> Product pages that show a body-measurement size chart. It simulates t-shirts only.</span></p>
+        </section>
+
+        <section aria-labelledby="how-title">
+          <h2 id="how-title">How it works</h2>
+          <ol class="steps">
+            <li>
+              <h3>Enter your measurements</h3>
+              <p>Type your height, chest, waist, hip and shoulder width once. The extension builds an avatar with your shape.</p>
+            </li>
+            <li>
+              <h3>Press Read page on a shop</h3>
+              <p>Open a t-shirt, open the side panel and press <span class="ui">Read page</span>. The avatar puts on the shirt in the colour you picked.</p>
+            </li>
+            <li>
+              <h3>Compare the sizes</h3>
+              <p>Tap a size to see where it is tight, snug, good or loose on your body.</p>
+              <p class="legend" aria-hidden="true"><span class="t"><i></i>Tight</span><span class="s"><i></i>Snug</span><span class="g"><i></i>Good</span><span class="l"><i></i>Loose</span></p>
+            </li>
+          </ol>
+        </section>
+
+        <section class="privacy-card" aria-labelledby="privacy-title">
+          <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></div>
+          <div>
+            <h2 id="privacy-title">Your data stays on your computer</h2>
+            <ul>
+              <li>No analytics, no tracking and no ads.</li>
+              <li>It reads a shop page only when you press <span class="ui">Read page</span>.</li>
+            </ul>
+            <a class="more" href="privacy-policy.html">Read the privacy policy<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4-4 4"/></svg></a>
+          </div>
+        </section>
+      </div>
+
+      <aside class="details" aria-labelledby="details-title">
+        <h2 id="details-title">Details</h2>
+        <dl class="facts">
+          <div><dt>Version</dt><dd>1.0.0</dd></div>
+          <div><dt>Updated</dt><dd>28 October 2026</dd></div>
+          <div><dt>Size</dt><dd>25.3 MB</dd></div>
+          <div><dt>Languages</dt><dd>English</dd></div>
+          <div><dt>Category</dt><dd>Shopping</dd></div>
+          <div><dt>Price</dt><dd>Free</dd></div>
+        </dl>
+
+        <h3>Permissions</h3>
+        <ul class="perms">
+          <li><code>sidePanel</code><br>Shows the try-on panel next to the shop page.</li>
+          <li><code>scripting</code><br>Reads the product name, colour, material and size chart when you press Read page.</li>
+          <li><code>activeTab</code><br>Lets Read page work on the tab you are on, without wider site access.</li>
+          <li><code>storage</code><br>Keeps your measurements and optional face photos on your computer.</li>
+          <li><b>Site access (optional)</b>Asked for the first time you press Read page on a shop, so the panel can read the page again when you change colour or size.</li>
+        </ul>
+
+        <h3>Links</h3>
+        <ul class="links">
+          <li><a href="https://github.com/tim-jordan-1/avatar-tryon">Source code<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12"/></svg></a></li>
+          <li><a href="privacy-policy.html">Privacy policy<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10m0 0L9 4m4 4-4 4"/></svg></a></li>
+          <li><a href="https://github.com/tim-jordan-1/avatar-tryon/blob/main/extension/NOTICES.md">Third-party licences<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12"/></svg></a></li>
+          <li><a href="https://github.com/tim-jordan-1/avatar-tryon/issues">Report an issue<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h7v7M13 3 4 12"/></svg></a></li>
+        </ul>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="media/icon.svg" alt="" width="24" height="24">Avatar Try-On</a>
+      <nav aria-label="Footer">
+        <a href="privacy-policy.html">Privacy policy</a>
+        <a href="https://github.com/tim-jordan-1/avatar-tryon">Source code</a>
+        <a href="https://github.com/tim-jordan-1/avatar-tryon/blob/main/extension/NOTICES.md">Third-party licences</a>
+        <a href="https://github.com/tim-jordan-1/avatar-tryon/issues">Report an issue</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    // When the Chrome Web Store listing is live, put its URL here. The install button then points to it.
+    const STORE_URL = "";
+
+    if (STORE_URL) {
+      document.querySelectorAll("[data-install]").forEach(a => { a.href = STORE_URL; });
+      document.querySelectorAll("[data-install-label]").forEach(s => { s.textContent = "Add to Chrome"; });
+      document.querySelectorAll("[data-store-soon]").forEach(p => { p.hidden = true; });
+    }
+
+    const topbar = document.querySelector(".topbar");
+    const onScroll = () => topbar.classList.toggle("scrolled", scrollY > 8);
+    addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+
+    const track = document.getElementById("track");
+    const slides = [...track.children];
+    const thumbs = [...document.querySelectorAll(".thumbs button")];
+    const prev = document.querySelector(".arrow.prev");
+    const next = document.querySelector(".arrow.next");
+    const status = document.getElementById("status");
+    const video = track.querySelector("video");
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+    let current = 0;
+
+    const indexNow = () => {
+      const x = track.scrollLeft;
+      let best = 0;
+      slides.forEach((s, i) => {
+        if (Math.abs(s.offsetLeft - slides[0].offsetLeft - x) < Math.abs(slides[best].offsetLeft - slides[0].offsetLeft - x)) best = i;
+      });
+      return best;
+    };
+    const show = i => {
+      if (i === current) return;
+      current = i;
+      thumbs.forEach((t, n) => t.setAttribute("aria-current", n === i ? "true" : "false"));
+      const li = thumbs[i].parentElement, strip = li.parentElement;
+      strip.scrollTo({ left: li.offsetLeft - (strip.clientWidth - li.offsetWidth) / 2, behavior: reduce.matches ? "auto" : "smooth" });
+      prev.disabled = i === 0;
+      next.disabled = i === slides.length - 1;
+      status.textContent = slides[i].getAttribute("aria-label").replace(/^(\d+ of \d+)$/, "$1: screenshot");
+      syncVideo();
+    };
+    const go = i => {
+      i = Math.max(0, Math.min(slides.length - 1, i));
+      track.scrollTo({ left: slides[i].offsetLeft - slides[0].offsetLeft, behavior: reduce.matches ? "auto" : "smooth" });
+    };
+
+    let ticking = false;
+    track.addEventListener("scroll", () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; show(indexNow()); });
+    }, { passive: true });
+    prev.addEventListener("click", () => go(current - 1));
+    next.addEventListener("click", () => go(current + 1));
+    thumbs.forEach((t, i) => t.addEventListener("click", () => go(i)));
+    track.addEventListener("keydown", e => {
+      if (e.target !== track) return;
+      if (e.key === "ArrowRight") { e.preventDefault(); go(current + 1); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); go(current - 1); }
+    });
+    prev.disabled = true;
+
+    // The demo has no sound, so it plays by itself while it is on screen. Reduced motion: it waits for the play button.
+    const videoSlide = slides[0];
+    const playBtn = videoSlide.querySelector(".play");
+    let inView = false;
+    let intent = null; // null until the visitor presses play or pause
+    function syncVideo() {
+      const allowed = intent === "play" || (intent === null && !reduce.matches);
+      if (current === 0 && inView && allowed) video.play().catch(() => {});
+      else if (!video.paused) video.pause();
+    }
+    const syncButton = () => {
+      const playing = !video.paused;
+      playBtn.setAttribute("aria-pressed", String(playing));
+      playBtn.setAttribute("aria-label", playing ? "Pause demo video" : "Play demo video");
+      videoSlide.classList.toggle("playing", playing);
+    };
+    video.addEventListener("play", syncButton);
+    video.addEventListener("pause", syncButton);
+    playBtn.addEventListener("click", () => {
+      intent = video.paused ? "play" : "pause";
+      if (intent === "play") inView = true;
+      syncVideo();
+    });
+    if (reduce.matches) videoSlide.classList.add("reduced");
+    new IntersectionObserver(([e]) => { inView = e.isIntersecting; syncVideo(); }, { threshold: 0.5 }).observe(videoSlide);
+  </script>
+</body>
+</html>

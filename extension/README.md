@@ -73,7 +73,7 @@ The panel can read any page, but the try-on needs a body-measurement size chart 
 | `build.mjs` | Builds `build/`: copies these files and the shared modules, downloads the libraries, and rewrites their imports to the local copies. |
 | `icons/` | The toolbar and store icons (16, 32, 48 and 128 px) and their SVG source. |
 | `NOTICES.md` | The licences of the bundled libraries, models and MakeHuman data. It goes into the zip. |
-| `store/` | The Chrome Web Store material: listing text and permission reasons (`listing.md`), screenshots and the promo tile. The privacy policy is `../docs/privacy-policy.md`, published with GitHub Pages. |
+| `store/` | The Chrome Web Store material: listing text and permission reasons (`listing.md`), screenshots and the promo tile. The privacy policy is `../docs/privacy-policy.html`, published with GitHub Pages at https://tim-jordan-1.github.io/avatar-tryon/privacy-policy. |
 
 ## Release build
 

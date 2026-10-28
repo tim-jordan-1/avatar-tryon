@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url)), outputs = join(here, '..'), build = join(here, 'build');
 const OWN = ['manifest.json', 'background.js', 'panel.html', 'panel.js', 'extract.js', 'colour.js', 'capture.html', 'capture.js', 'capture-core.js', 'photo-store.js'];
 const SHARED = ['avatar-poc/body.js', 'avatar-poc/anim.js', 'cloth-spike/tryon.js', 'cloth-spike/fabric.js', 'cloth-spike/shirt.js', 'fit-map/sizechart.js', 'fit-map/fit.js',
-  'twin-spike/fuse.js', 'twin-spike/hair.js', 'twin-spike/rbf.js', 'twin-spike/head.js', 'twin-spike/mhbody.js', 'twin-spike/analyse.js', 'twin-spike/mhavatar.js'];
+  'twin-spike/fuse.js', 'twin-spike/hair.js', 'twin-spike/rbf.js', 'twin-spike/head.js', 'twin-spike/mhbody.js', 'twin-spike/analyse.js', 'twin-spike/mhavatar.js', 'sweep-spike/sweep.js'];
 const NPM = 'https://cdn.jsdelivr.net/npm/';
 const MP = `${NPM}@mediapipe/tasks-vision@1.1.1/`;
 const THREE = `${NPM}three@0.170.0/`;

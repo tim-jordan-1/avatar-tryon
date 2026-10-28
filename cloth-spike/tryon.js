@@ -15,6 +15,61 @@ const NECK_DRIFT = 0.002, THICKNESS = 0.003; // metres
 const DT = 1 / 60; // fixed physics step
 let joltModule = null;
 
+// Patches a skin material (MeshStandardMaterial on a body mesh with an armW attribute) to draw the base layer:
+// charcoal fitted trunks for 'male'; for 'female', briefs with a high leg cut and a fitted crop top. Light waistband, two stitched lines
+// above the hem, a thin shadow at each edge and a matte finish make it read as fabric, not paint. Positions are the
+// rest pose in metres; L: body landmarks, H: height.
+function baseLayerPatch(L, H, sex) {
+  const briefs = sex === 'female';
+  const top = L.hipY + (L.waistY - L.hipY) * (briefs ? 0.35 : 0.25);
+  const uniforms = {
+    uTop: { value: top }, uBottom: { value: L.crotchY - (briefs ? 0.02 : 0.075) * H }, uBand: { value: (briefs ? 0.011 : 0.016) * H },
+    uLegX: { value: 0.025 * H }, uCut: { value: briefs ? 0.6 : 0 }, uHalfW: { value: 0.17 * H },
+    // The crop top: from under the bust to just below the armpits (0 height for 'male').
+    uBraTop: { value: briefs ? L.armpitY - 0.006 * H : 0 }, uBraBot: { value: briefs ? L.chestY - 0.05 * H : 0 },
+    uFabric: { value: new THREE.Color('#33363b') }, uBandCol: { value: new THREE.Color('#9d998f') }, uStitch: { value: new THREE.Color('#8a8d92') },
+  };
+  return (m) => {
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, uniforms);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute float armW; varying float vArm; varying vec3 vRest;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = position; vArm = armW;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+uniform float uTop, uBottom, uBand, uLegX, uCut, uHalfW, uBraTop, uBraBot; uniform vec3 uFabric, uBandCol, uStitch;
+varying float vArm; varying vec3 vRest;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+float garment = 0.0;
+if (vArm < 0.5 && abs(vRest.x) < uHalfW) {
+  float aa = max(fwidth(vRest.y), 1e-4), y = vRest.y;
+  float bottom = uBottom + uCut * max(0.0, abs(vRest.x) - uLegX); // briefs: the leg line rises to the hip
+  garment = smoothstep(bottom - aa, bottom + aa, y) * (1.0 - smoothstep(uTop - aa, uTop + aa, y));
+  float band = smoothstep(uTop - uBand - aa, uTop - uBand + aa, y);
+  vec3 g = mix(uFabric, uBandCol, band);
+  g *= 1.0 - 0.35 * (1.0 - smoothstep(0.0, 0.003, abs(y - (uTop - uBand)))) * band; // a dark line under the band's top edge
+  float dash = step(0.45, fract((vRest.x + vRest.z) * 230.0));
+  float d = min(abs(y - bottom - 0.006), abs(y - bottom - 0.011));
+  g = mix(g, uStitch, (1.0 - smoothstep(0.0006, 0.0006 + aa, d)) * dash * (1.0 - band));
+  g *= 0.7 + 0.3 * smoothstep(bottom, bottom + 0.0025, y); // the hem's thickness
+  float edge = 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.004, abs(y - bottom))) * (1.0 - garment)
+                   - 0.15 * (1.0 - smoothstep(0.0, 0.004, abs(y - uTop))) * (1.0 - garment); // contact shadow on the skin
+  diffuseColor.rgb = mix(diffuseColor.rgb * edge, g, garment);
+  if (uBraTop > uBraBot) {
+    float bra = smoothstep(uBraBot - aa, uBraBot + aa, y) * (1.0 - smoothstep(uBraTop - aa, uBraTop + aa, y));
+    vec3 b = mix(uFabric, uBandCol, 1.0 - smoothstep(uBraBot + uBand - aa, uBraBot + uBand + aa, y)); // under-band
+    float bEdge = 1.0 - 0.15 * (1.0 - smoothstep(0.0, 0.004, min(abs(y - uBraTop), abs(y - uBraBot)))) * (1.0 - bra);
+    diffuseColor.rgb = mix(diffuseColor.rgb * bEdge, b, bra);
+    garment = max(garment, bra);
+  }
+}`)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.92, garment);');
+    };
+    m.customProgramCacheKey = () => 'baseLayer';
+    return m;
+  };
+}
+
 // host: an element to fill. measurements: avatar-poc inputs in cm. sex: 'male' | 'female' (MakeHuman shape).
 // face: optional result of twin-spike/analyse.js analyseViews() plus { photos: [3 canvases], landmarker }.
 export async function createTryOn(host, { measurements, sex = 'male', face = null, skin = '#c68e6a' }) {
@@ -64,18 +119,16 @@ export async function createTryOn(host, { measurements, sex = 'male', face = nul
   bodyGeo.setAttribute('skinWeight', new THREE.BufferAttribute(body.skinWeight, 4));
   bodyGeo.setIndex(new THREE.BufferAttribute(body.indices, 1));
   bodyGeo.computeVertexNormals();
-  // Plain grey briefs: the MakeHuman body is anatomically complete. By position: hips to upper thigh. The hands now hang
-  // in that band, so vertices skinned mostly to an arm bone (found again by position in the twin) stay skin.
-  const H = body.measurements.height / 100, BRIEFS = new THREE.Color('#4a4d52'), skinColour = new THREE.Color(skin);
-  const isArmBone = body.bones.map((b) => /^(upperArm|foreArm|hand)/.test(b.name)), armKeys = new Set();
-  for (let i = 0; i < body.positions.length / 3; i++) {
-    let w = 0;
-    for (let k = 0; k < 4; k++) if (isArmBone[body.skinIndex[i * 4 + k]]) w += body.skinWeight[i * 4 + k];
-    if (w > 0.5) armKeys.add(body.positions.subarray(i * 3, i * 3 + 3).join());
-  }
-  const inBriefs = (p) => p[1] > body.landmarks.crotchY - 0.06 * H && p[1] < body.landmarks.crotchY + 0.08 * H && Math.abs(p[0]) < 0.17 * H && !armKeys.has(`${p[0]},${p[1]},${p[2]}`);
+  // The base layer: the MakeHuman body is anatomically complete. Fitted trunks (male) or briefs (female), drawn by a
+  // shader from the rest-pose position, so it stays skin-tight and true to the measurements. The hands hang in that
+  // band, so vertices skinned mostly to an arm bone (armW) stay skin.
+  const H = body.measurements.height / 100;
+  const isArmBone = body.bones.map((b) => /^(upperArm|foreArm|hand)/.test(b.name)), armW = new Float32Array(body.positions.length / 3);
+  for (let i = 0; i < armW.length; i++) for (let k = 0; k < 4; k++) if (isArmBone[body.skinIndex[i * 4 + k]]) armW[i] += body.skinWeight[i * 4 + k];
+  bodyGeo.setAttribute('armW', new THREE.BufferAttribute(armW, 1));
+  const baseLayer = baseLayerPatch(body.landmarks, H, sex);
   const colours = new Float32Array(body.positions.length);
-  for (let i = 0; i < colours.length; i += 3) (inBriefs(body.positions.subarray(i, i + 3)) ? BRIEFS : skinColour).toArray(colours, i);
+  for (let i = 0; i < colours.length; i += 3) new THREE.Color(skin).toArray(colours, i);
   bodyGeo.setAttribute('color', new THREE.BufferAttribute(colours, 3));
   const byName = Object.fromEntries(body.bones.map((b, i) => [b.name, i]));
   const bonePos = (name) => new THREE.Vector3().fromArray(body.bones[byName[name]].pos);
@@ -85,7 +138,7 @@ export async function createTryOn(host, { measurements, sex = 'male', face = nul
     bones[i].position.fromArray(b.pos.map((v, k) => v - (parent ? parent.pos[k] : 0)));
     if (parent) bones[byName[b.parent]].add(bones[i]);
   });
-  const avatar = new THREE.SkinnedMesh(bodyGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }));
+  const avatar = new THREE.SkinnedMesh(bodyGeo, baseLayer(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 })));
   avatar.castShadow = true;
   avatar.frustumCulled = false;
   avatar.add(bones[0]);
@@ -95,18 +148,30 @@ export async function createTryOn(host, { measurements, sex = 'male', face = nul
   // A body vertex keeps its posed place (the arms hang); a head vertex has no arm weight and takes the fit alone.
   const toBodyFrame = (p, vi) => (vi === undefined ? body.place(body.deform(p)) : [...body.positions.subarray(vi * 3, vi * 3 + 3)]), headPos = bonePos('head');
   // Children of the head bone are placed relative to its bind position.
-  const onHead = (mesh) => { mesh.position.set(-headPos.x, -headPos.y, -headPos.z); mesh.castShadow = true; rig.head.add(mesh); };
+  // Each eye hangs from a pivot at its centre, so it can turn in its socket (eyePivots), under the head bone.
+  const eyePivots = [];
+  const onHead = (mesh) => {
+    mesh.geometry.computeBoundingBox();
+    const c = mesh.geometry.boundingBox.getCenter(new THREE.Vector3()), pivot = new THREE.Group();
+    pivot.position.copy(c).sub(headPos);
+    mesh.position.copy(c).negate();
+    mesh.castShadow = true;
+    pivot.add(mesh);
+    rig.head.add(pivot);
+    eyePivots.push(pivot);
+  };
   if (face) {
     // Photo twin: the head textured from the photos and the body in the measured skin tone, skinned with the body's
     // weights. The plain body stays as the hidden reference the cloth tests read.
     const twin = buildTwin({ head, corr: correspond(head, face.landmarker), res: face.res, fused: face.fused, skinHex: skin,
-      mmPerPx: face.mmPerPx, photos: face.photos, deform: toBodyFrame,
-      tint: (p) => (inBriefs(p) ? [0, 1, 2].map((k) => BRIEFS.toArray()[k] / Math.max(0.01, skinColour.toArray()[k])) : null) });
+      mmPerPx: face.mmPerPx, photos: face.photos, deform: toBodyFrame });
     const [skinMesh, ...eyes] = twin.group.children, g = skinMesh.geometry, n = twin.bodyIndex.length;
     const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
     twin.bodyIndex.forEach((b, i) => { si.set(body.skinIndex.subarray(b * 4, b * 4 + 4), i * 4); sw.set(body.skinWeight.subarray(b * 4, b * 4 + 4), i * 4); });
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
     g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+    g.setAttribute('armW', new THREE.BufferAttribute(Float32Array.from(twin.bodyIndex, (b) => armW[b]), 1));
+    skinMesh.material[skinMesh.material.length - 1] = baseLayer(skinMesh.material.at(-1)); // the body part, in the skin tone
     const twinMesh = new THREE.SkinnedMesh(g, skinMesh.material);
     twinMesh.castShadow = true;
     twinMesh.frustumCulled = false;
@@ -123,11 +188,53 @@ export async function createTryOn(host, { measurements, sex = 'male', face = nul
   }
   const bindHipsY = bones[0].position.y;
   const VIEWS = { front: [0, 0.68, 1.9], side: [1.9, 0.68, 0], back: [0, 0.68, -1.9], three: [1.3, 0.75, 1.5] };
-  const view = (name) => { camera.position.fromArray(VIEWS[name].map((v) => v * H)); controls.target.set(0, 0.66 * H, 0); };
-  view('three');
+  // Camera: a direction (VIEWS) and a body zone to frame. A zone is the [bottom, top] of the body to show, in metres;
+  // 'full' keeps the whole-body shot.
+  const LM = body.landmarks, ZONES = { face: [LM.neckY - 0.03 * H, 1.02 * H], torso: [LM.crotchY - 0.04 * H, LM.neckY + 0.05 * H], legs: [-0.01 * H, LM.crotchY + 0.08 * H] };
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let viewName = 'three', zone = 'full', fly = null; // fly: { from, to, t } while the camera moves to a new shot
+  const shot = () => {
+    const base = new THREE.Vector3(0, 0.66 * H, 0), pos = new THREE.Vector3().fromArray(VIEWS[viewName]).multiplyScalar(H);
+    if (!ZONES[zone]) return { pos, target: base };
+    const [lo, hi] = ZONES[zone], span = hi - lo, target = new THREE.Vector3(0, (lo + hi) / 2, 0);
+    const dist = (span * 1.1) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
+    return { pos: pos.sub(base).normalize().multiplyScalar(dist).add(target), target };
+  };
+  const aim = (instant) => {
+    const to = shot();
+    if (instant || reduceMotion.matches) { camera.position.copy(to.pos); controls.target.copy(to.target); fly = null; return; }
+    fly = { from: { pos: camera.position.clone(), target: controls.target.clone() }, to, t: 0 };
+  };
+  controls.addEventListener('start', () => { fly = null; }); // the user's own orbit wins
+  const view = (name) => { viewName = name; aim(false); };
+  const frame = (z) => { zone = z in ZONES ? z : 'full'; aim(false); };
+  aim(true);
   let mode = 'idle', clock = 0, t0 = 0; // t0: when the try-on sequence started
-  const isTryon = (m) => m === 'tryon' || m === 'tryonCalm';
-  const animate = (t) => { animateRig(rig, avatar, bindHipsY, t, mode, t0); avatar.updateMatrixWorld(true); };
+  const isTryon = (m) => m === 'tryon' || m === 'tryonTight' || m === 'tryonCalm';
+  // Looking at the pointer: aim is where the pointer asks the head to turn ({ yaw, pitch } or null when the pointer is
+  // off the stage); look follows it slowly and the eyes follow it fast, so the eyes lead and the head catches up.
+  let aimAt = null;
+  const look = { yaw: 0, pitch: 0, w: 0 }, eyes = { yaw: 0, pitch: 0 };
+  const _ray = new THREE.Raycaster(), _hp = new THREE.Vector3(), _ndc = new THREE.Vector2();
+  renderer.domElement.addEventListener('pointermove', (e) => {
+    const r = renderer.domElement.getBoundingClientRect();
+    _ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    _ray.setFromCamera(_ndc, camera);
+    rig.head.getWorldPosition(_hp);
+    const d = _ray.ray.at(camera.position.distanceTo(_hp), new THREE.Vector3()).sub(_hp);
+    const yaw = Math.atan2(d.x, d.z), pitch = Math.atan2(-d.y, Math.hypot(d.x, d.z));
+    aimAt = Math.abs(yaw) > 1.4 ? null : { yaw: THREE.MathUtils.clamp(yaw, -0.75, 0.75), pitch: THREE.MathUtils.clamp(pitch, -0.35, 0.4) }; // behind the avatar: no look
+  });
+  renderer.domElement.addEventListener('pointerleave', () => { aimAt = null; });
+  const follow = () => {
+    const on = aimAt && mode === 'idle';
+    look.w += ((on ? 1 : 0) - look.w) * 0.05;
+    if (aimAt) { look.yaw += (aimAt.yaw - look.yaw) * 0.06; look.pitch += (aimAt.pitch - look.pitch) * 0.06; }
+    const ey = on ? THREE.MathUtils.clamp(aimAt.yaw - look.yaw * 0.8, -0.35, 0.35) : 0, ep = on ? THREE.MathUtils.clamp(aimAt.pitch - look.pitch, -0.25, 0.25) : 0;
+    eyes.yaw += (ey - eyes.yaw) * 0.3; eyes.pitch += (ep - eyes.pitch) * 0.3;
+    for (const p of eyePivots) p.rotation.set(eyes.pitch, eyes.yaw, 0);
+  };
+  const animate = (t) => { follow(); animateRig(rig, avatar, bindHipsY, t, mode, t0, look); avatar.updateMatrixWorld(true); };
 
   // --- Jolt world ---
   const settings = new Jolt.JoltSettings();
@@ -477,15 +584,23 @@ export async function createTryOn(host, { measurements, sex = 'male', face = nul
     frames++;
     if (now - fpsT >= 1000) { fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; }
     if (now - penT > 250) { pen = countInside(); penT = now; }
+    if (fly) {
+      fly.t = Math.min(1, fly.t + 1 / 27); // about 0.45 s at 60 Hz
+      const k = fly.t * fly.t * (3 - 2 * fly.t);
+      camera.position.lerpVectors(fly.from.pos, fly.to.pos, k);
+      controls.target.lerpVectors(fly.from.target, fly.to.target, k);
+      if (fly.t === 1) fly = null;
+    }
     controls.update();
     renderer.render(scene, camera);
   });
 
   return {
-    body, setGarment, view, camera, controls,
+    body, setGarment, view, frame, camera, controls,
     setMode: (m) => { mode = m; if (isTryon(m)) t0 = clock; },
-    // The try-on sequence; it returns to idle by itself. calm: the reduced-motion version. Returns its length in ms.
-    celebrate({ calm = false } = {}) { mode = calm ? 'tryonCalm' : 'tryon'; t0 = clock; return TRYON_SECONDS * 1000; },
+    // The try-on sequence; it returns to idle by itself. calm: the reduced-motion version. tight: a shrug instead of
+    // the hop and fist pump, for a tight fit. Returns its length in ms.
+    celebrate({ calm = false, tight = false } = {}) { mode = calm ? 'tryonCalm' : tight ? 'tryonTight' : 'tryon'; t0 = clock; return TRYON_SECONDS * 1000; },
     // A brighter, coloured rim light for the try-on moment.
     setRim(on) { rim.color.set(on ? 0xa99bff : 0xbfd4ff); rim.intensity = on ? 2.6 : 1.0; },
     stats: () => ({ fps, stepMs, vertices: cloth?.nv ?? 0, triangles: cloth ? cloth.shirt.indices.length / 3 : 0, ...pen }),

@@ -18,6 +18,14 @@ const TRYON = {
   foreRx: [[0, 0], [2.2, 0], [2.8, -1.25], [3.0, -1.45], [3.3, -1.3], [4.0, 0]],
   foreLz: [[0, 0], [2.3, 0], [2.6, 0.35], [3.0, 0.2], [3.4, 0]],
 };
+// 'tryonTight': the same looks, then a shrug instead of the hop and fist pump. Arms out a little, forearms up with the
+// palms open, the head tilted and shaking a little: "bit snug".
+const TIGHT = {
+  armLz: [[0, 0], [0.55, 0.08], [1.35, 0.32], [1.6, 0.32], [1.95, 0.2], [2.5, 0.3], [3.3, 0.3], [3.85, 0]],
+  armRz: [[0, 0], [0.55, -0.08], [1.35, -0.15], [1.6, -0.15], [1.95, -0.32], [2.2, -0.32], [2.5, -0.3], [3.3, -0.3], [3.85, 0]],
+  foreX: [[0, 0], [2.2, 0], [2.6, -0.85], [3.3, -0.85], [3.9, 0]],
+  headZ: [[0, 0], [2.3, 0], [2.6, 0.14], [3.3, 0.14], [3.8, 0]],
+};
 const HOP = [2.42, 2.78, 0.035]; // start s, end s, height m: inside the 4 cm the cloth may drift from its place
 const ease = (x) => x * x * (3 - 2 * x);
 function key(track, u) {
@@ -29,8 +37,10 @@ function key(track, u) {
   return track[track.length - 1][1];
 }
 
-// t: the clock in seconds. t0: when the try-on sequence started (modes 'tryon' and 'tryonCalm').
-export function animate(rig, avatar, hipsY, t, mode, t0 = 0) {
+// t: the clock in seconds. t0: when the try-on sequence started (modes 'tryon', 'tryonTight' and 'tryonCalm').
+// look: optional { yaw, pitch, w } in radians: in idle, the head turns that way with weight w (0..1), for example
+// toward the pointer.
+export function animate(rig, avatar, hipsY, t, mode, t0 = 0, look = null) {
   for (const b of Object.values(rig)) b.rotation.set(0, 0, 0);
   rig.hips.position.y = hipsY;
   avatar.rotation.y = mode === 'turn' ? t * 0.7 : 0;
@@ -58,9 +68,9 @@ export function animate(rig, avatar, hipsY, t, mode, t0 = 0) {
     rig.upperArmR.rotation.z = -up;
     rig.foreArmL.rotation.z = up * 0.15;
     rig.foreArmR.rotation.z = -up * 0.15;
-  } else if (mode === 'tryon' || mode === 'tryonCalm') {
+  } else if (mode === 'tryon' || mode === 'tryonTight' || mode === 'tryonCalm') {
     // Calm (reduced motion): the same looks at 40%, with no hop and no fist pump.
-    const u = t - t0, k = mode === 'tryon' ? 1 : 0.4, calm = mode !== 'tryon';
+    const u = t - t0, k = mode === 'tryonCalm' ? 0.4 : 1, calm = mode === 'tryonCalm', tight = mode === 'tryonTight';
     rig.chest.rotation.x += key(TRYON.chestX, u) * k;
     rig.chest.rotation.y = key(TRYON.chestY, u) * k * 0.6;
     rig.head.rotation.x = key(TRYON.headX, u) * k;
@@ -70,7 +80,16 @@ export function animate(rig, avatar, hipsY, t, mode, t0 = 0) {
     rig.foreArmL.rotation.z = calm ? 0 : key(TRYON.foreLz, u);
     rig.upperArmR.rotation.x = calm ? 0 : key(TRYON.armRx, u);
     rig.foreArmR.rotation.x = calm ? 0 : key(TRYON.foreRx, u);
-    const hop = calm || u < HOP[0] || u > HOP[1] ? 0 : Math.sin(((u - HOP[0]) / (HOP[1] - HOP[0])) * Math.PI) * HOP[2];
+    if (tight) {
+      rig.upperArmL.rotation.z = key(TIGHT.armLz, u);
+      rig.upperArmR.rotation.z = key(TIGHT.armRz, u);
+      rig.foreArmL.rotation.z = 0;
+      rig.upperArmR.rotation.x = 0;
+      rig.foreArmL.rotation.x = rig.foreArmR.rotation.x = key(TIGHT.foreX, u);
+      rig.head.rotation.z = key(TIGHT.headZ, u);
+      rig.head.rotation.y += u > 2.6 && u < 3.3 ? Math.sin(((u - 2.6) / 0.7) * 2 * Math.PI) * 0.1 : 0;
+    }
+    const hop = calm || tight || u < HOP[0] || u > HOP[1] ? 0 : Math.sin(((u - HOP[0]) / (HOP[1] - HOP[0])) * Math.PI) * HOP[2];
     rig.hips.position.y = hipsY + key(TRYON.crouch, u) * (calm ? 0 : 1) + hop;
   } else {
     // A lively idle: a small bounce, weight shifting from hip to hip, and now and then a look around.
@@ -80,5 +99,11 @@ export function animate(rig, avatar, hipsY, t, mode, t0 = 0) {
     rig.hips.position.y = hipsY + Math.sin(t * 2.6) * 0.003;
     rig.head.rotation.y += Math.sin(t * 0.23) ** 5 * 0.35;
     rig.head.rotation.x = Math.sin(t * 0.31) ** 3 * 0.08;
+    if (look?.w) { // the head turns to the look; the chest helps a little with a big turn
+      const w = look.w;
+      rig.head.rotation.y += (look.yaw * 0.8 - rig.head.rotation.y) * w;
+      rig.head.rotation.x += (look.pitch - rig.head.rotation.x) * w;
+      rig.chest.rotation.y += look.yaw * 0.2 * w;
+    }
   }
 }

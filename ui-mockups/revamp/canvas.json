@@ -1,0 +1,38 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-28T09:00:00Z"},
+  "title": "Avatar Try-On UI revamp",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 400, "h": 860, "title": "1A · Lifelike idle + emotes", "is_interactive": true, "radius": 24},
+    "Avatar-B-Inventory.dc.html": {"x": 480, "y": 0, "w": 400, "h": 860, "title": "1B · Game inventory hover", "is_interactive": true, "radius": 24},
+    "Avatar-C-Reactive.dc.html": {"x": 960, "y": 0, "w": 400, "h": 860, "title": "1C · Looks at you, reacts", "is_interactive": true, "radius": 24},
+    "Shorts.dc.html": {"x": 0, "y": 1300, "w": 1360, "h": 600, "title": "2 · Base-layer shorts options"},
+    "Presets-A-Rail.dc.html": {"x": 0, "y": 2340, "w": 400, "h": 860, "title": "3A · Zoom rail presets", "is_interactive": true, "radius": 24},
+    "Presets-B-BodyMap.dc.html": {"x": 480, "y": 2340, "w": 400, "h": 860, "title": "3B · Body-map minimap", "is_interactive": true, "radius": 24},
+    "Presets-C-Filmstrip.dc.html": {"x": 960, "y": 2340, "w": 400, "h": 860, "title": "3C · Live filmstrip", "is_interactive": true, "radius": 24},
+    "Capture-A-Guided.dc.html": {"x": 0, "y": 3640, "w": 720, "h": 820, "title": "4A · Guided poses", "is_interactive": true, "radius": 16},
+    "Capture-B-Sweep.dc.html": {"x": 800, "y": 3640, "w": 720, "h": 820, "title": "4B · One-sweep scan", "radius": 16},
+    "Capture-C-LiveTwin.dc.html": {"x": 1600, "y": 3640, "w": 720, "h": 820, "title": "4C · Live twin mirror", "is_interactive": true, "radius": 16}
+  },
+  "order": [
+    "Main.dc.html",
+    "Avatar-B-Inventory.dc.html",
+    "Avatar-C-Reactive.dc.html",
+    "Shorts.dc.html",
+    "Presets-A-Rail.dc.html",
+    "Presets-B-BodyMap.dc.html",
+    "Presets-C-Filmstrip.dc.html",
+    "Capture-A-Guided.dc.html",
+    "Capture-B-Sweep.dc.html",
+    "Capture-C-LiveTwin.dc.html"
+  ],
+  "notes": {
+    "row1": {"x": 0, "y": -300, "text": "1 · Avatar: alive in idle", "kind": "title1", "maxW": 1360},
+    "row2": {"x": 0, "y": 1000, "text": "2 · Shorts that read as shorts", "kind": "title1", "maxW": 1360},
+    "row3": {"x": 0, "y": 2040, "text": "3 · Camera presets: face, torso, legs", "kind": "title1", "maxW": 1360},
+    "row4": {"x": 0, "y": 3340, "text": "4 · Face photo capture", "kind": "title1", "maxW": 2320}
+  },
+  "designSystems": []
+}

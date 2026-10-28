@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Guided face photo capture</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.hold{animation:hold 2.4s linear infinite}
+@keyframes hold{0%{stroke-dashoffset:520}70%,100%{stroke-dashoffset:0}}
+.chev{animation:nudge 1.2s ease-in-out infinite}
+@keyframes nudge{0%,100%{transform:translateX(0);opacity:.35}50%{transform:translateX(var(--dx));opacity:1}}
+.needle{transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.step{flex:1;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:1px solid #e3e0da;background:#fff;color:#5f5d58;font:500 13px Inter,system-ui,sans-serif;text-align:left;cursor:pointer}
+.step.now{border:2px solid #2f5d50;color:#1d1d1f}
+.step.done{color:#2f5d50}
+@media (prefers-reduced-motion: reduce){.hold,.chev{animation:none}}
+</style>
+</helmet>
+<div style="width: 720px; height: 820px; box-sizing: border-box; padding: 28px 32px; background: #f4f2ee; color: #1d1d1f; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; gap: 16px">
+  <div style="display: flex; align-items: flex-end; justify-content: space-between">
+    <div>
+      <h1 style="margin: 0; font-size: 22px">Take face photos</h1>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #5f5d58">Three photos. Each one is taken by itself when you hold the pose.</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #2f5d50; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11 V7 a4 4 0 0 1 8 0 V11"></path></svg>Stays in this browser</div>
+  </div>
+
+  <div style="display: flex; gap: 10px" role="group" aria-label="Steps">
+    <sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+      <button type="button" class="{{s.cls}}" onClick="{{s.pick}}" aria-current="{{s.current}}">
+        <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#efece5"></circle><ellipse cx="17" cy="16" rx="8" ry="10" fill="#cdbfae"></ellipse><circle cx="{{s.e1}}" cy="15" r="1.3" fill="#3a2418"></circle><circle cx="{{s.e2}}" cy="15" r="1.3" fill="#3a2418"></circle><path d="{{s.nose}}" stroke="#8c6a50" stroke-width="1.2" fill="none"></path></svg>
+        <span><span style="display: block; font-weight: 600">{{s.title}}</span><span style="font-size: 12px">{{s.state}}</span></span>
+      </button>
+    </sc-for>
+  </div>
+
+  <div style="position: relative; height: 400px; border-radius: 20px; overflow: hidden; background: radial-gradient(80% 90% at 50% 40%, #3b3f47 0%, #1c1e22 70%, #121316 100%)">
+    <svg width="656" height="400" viewBox="0 0 656 400" role="img" aria-label="{{alt}}">
+      <path d="M200 400 Q210 300 328 290 Q446 300 456 400 Z" fill="#2a2d33"></path>
+      <path d="M300 250 L356 250 L360 300 L296 300 Z" fill="#4a4d55"></path>
+      <ellipse cx="328" cy="175" rx="70" ry="90" fill="#5a5e67"></ellipse>
+      <ellipse cx="{{p.ear}}" cy="180" rx="12" ry="20" fill="#50545c"></ellipse>
+      <path d="M262 150 Q270 86 330 84 Q392 86 396 150 Q380 116 330 112 Q282 114 262 150 Z" fill="#2c2e33"></path>
+      <ellipse cx="{{p.e1}}" cy="170" rx="9" ry="5" fill="#2a2c31"></ellipse>
+      <ellipse cx="{{p.e2}}" cy="170" rx="9" ry="5" fill="#2a2c31"></ellipse>
+      <path d="{{p.nose}}" stroke="#3a3d44" stroke-width="3" fill="none" stroke-linecap="round"></path>
+      <path d="{{p.mouth}}" stroke="#3a3d44" stroke-width="3" fill="none" stroke-linecap="round"></path>
+      <ellipse cx="328" cy="180" rx="96" ry="122" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-dasharray="6 6"></ellipse>
+      <ellipse class="hold" cx="328" cy="180" rx="96" ry="122" fill="none" stroke="#8fd1a8" stroke-width="4" stroke-linecap="round" stroke-dasharray="700" transform="rotate(-90 328 180)"></ellipse>
+      <g opacity="{{chevOp}}">
+        <g class="chev" style="{{chevStyle}}"><path d="{{chevPath}}" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></g>
+      </g>
+    </svg>
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 24px 16px; background: linear-gradient(transparent, rgba(0,0,0,.7)); color: #fff; text-align: center">
+      <div style="font-size: 18px; font-weight: 600">{{prompt}}</div>
+      <div style="position: relative; width: 320px; height: 28px; margin: 12px auto 0" aria-hidden="true">
+        <div style="position: absolute; left: 0; right: 0; top: 12px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.25)"></div>
+        <div style="{{bandStyle}}"></div>
+        <div class="needle" style="{{needleStyle}}"></div>
+        <div style="position: absolute; left: 0; top: 18px; font-size: 10px; color: rgba(255,255,255,.7)">Left 90°</div>
+        <div style="position: absolute; left: 50%; top: 18px; transform: translateX(-50%); font-size: 10px; color: rgba(255,255,255,.7)">0°</div>
+        <div style="position: absolute; right: 0; top: 18px; font-size: 10px; color: rgba(255,255,255,.7)">Right 90°</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+    <sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+      <div style="{{s.slotStyle}}">{{s.slot}}</div>
+    </sc-for>
+  </div>
+  <div style="display: flex; gap: 10px">
+    <button type="button" style="height: 48px; padding: 0 18px; border-radius: 12px; border: 1px solid #dcd8cf; background: #fff; color: #1d1d1f; font: 600 14px Inter, system-ui, sans-serif">Retake</button>
+    <button type="button" disabled style="flex: 1; height: 48px; border-radius: 12px; border: 0; background: #2f5d50; color: #fff; font: 600 14px Inter, system-ui, sans-serif; opacity: .45">Use these photos</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":820}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { step: 1 }; }
+  renderVals() {
+    const cur = this.state.step;
+    const S = [
+      { title: 'Front', yaw: 0, prompt: 'Look straight at the camera', band: [-12, 12], needle: 4 },
+      { title: 'Left side', yaw: -1, prompt: 'Turn your head to the left · hold still', band: [-70, -35], needle: -48 },
+      { title: 'Right side', yaw: 1, prompt: 'Turn your head to the right · hold still', band: [35, 70], needle: 22 },
+    ];
+    const pose = (y) => ({
+      e1: 302 + y * 30, e2: 354 + y * 30, ear: y < 0 ? 410 : y > 0 ? 246 : -50,
+      nose: 'M' + (328 + y * 40) + ' 176 L' + (328 + y * 52) + ' 204 L' + (328 + y * 36) + ' 208',
+      mouth: 'M' + (312 + y * 34) + ' 230 Q' + (328 + y * 36) + ' 236 ' + (344 + y * 34) + ' 230',
+    });
+    const x = (deg) => ((deg + 90) / 180) * 320;
+    const s = S[cur];
+    const steps = S.map((t, i) => {
+      const done = i < cur, now = i === cur;
+      return {
+        title: t.title, cls: 'step' + (done ? ' done' : '') + (now ? ' now' : ''), current: now ? 'step' : 'false',
+        state: done ? 'Taken' : now ? 'Hold the pose' : 'Next',
+        e1: 13 + t.yaw * 4, e2: 21 + t.yaw * 4, nose: 'M' + (17 + t.yaw * 5) + ' 16 l' + (t.yaw * 2) + ' 4',
+        pick: () => this.setState({ step: i }),
+        slot: done ? t.title + ' ✓' : t.title,
+        slotStyle: 'height: 64px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; ' + (done ? 'background: #5a5e67; color: #fff' : 'background: #fff; color: #8a8780; border: 1px dashed #cfcac0'),
+      };
+    });
+    const dir = s.yaw;
+    return {
+      steps,
+      p: pose(dir === 0 ? 0 : dir * 0.7),
+      prompt: s.prompt,
+      alt: 'Camera view: ' + s.prompt,
+      chevOp: dir === 0 ? 0 : 1,
+      chevStyle: '--dx: ' + (dir * 14) + 'px',
+      chevPath: dir < 0 ? 'M150 160 L130 180 L150 200 M180 160 L160 180 L180 200' : 'M476 160 L496 180 L476 200 M506 160 L526 180 L506 200',
+      bandStyle: 'position: absolute; top: 10px; height: 8px; border-radius: 4px; background: rgba(143,209,168,.75); left: ' + x(s.band[0]) + 'px; width: ' + (x(s.band[1]) - x(s.band[0])) + 'px',
+      needleStyle: 'position: absolute; top: 4px; left: -2px; width: 4px; height: 20px; border-radius: 2px; background: #fff; transform: translateX(' + x(s.needle) + 'px)',
+    };
+  }
+}
+</script>
+</body>
+</html>

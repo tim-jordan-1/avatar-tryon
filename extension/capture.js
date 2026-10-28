@@ -1,19 +1,21 @@
-// Guided camera capture: opens the camera, watches the head turn with MediaPipe, and takes the front, left and right
-// photos by itself when each pose holds. Runs in its own tab (Chrome does not reliably show the camera prompt in a side panel).
-import { createCapture, yawFromMatrix, jitter } from './capture-core.js';
+// One-sweep camera capture: opens the camera, watches one slow head turn with MediaPipe, and keeps the sharpest frame
+// near each 10-degree step of the turn (sweep-spike/sweep.js). Runs in its own tab (Chrome does not reliably show the
+// camera prompt in a side panel).
+import { yawFromMatrix } from './capture-core.js';
+import { createSweep, pitchFromMatrix, sharpness, MIN_FACE, PITCH_MAX } from './lib/sweep-spike/sweep.js';
 import { photoStore, toDataUrl } from './photo-store.js';
 
 const $ = (id) => document.getElementById(id);
-const NAMES = ['Front', 'Left side', 'Right side'];
+const SVG = 'http://www.w3.org/2000/svg';
+const TICKS_PER_BIN = 6, RING_DEG = 150; // the ring spans -150..150 degrees from the top for yaw -50..50
 const HINTS = {
-  noface: 'No face found. Face the camera in good light.', closer: 'Move a little closer.', still: 'Hold still.', hold: 'Hold it there…',
-  front: 'Look straight at the camera.', more: 'Turn a little further.', less: 'Not so far.', other: 'Now turn to the other side.',
+  noface: 'No face found. Face the camera in good light.', closer: 'Move a little closer.', level: 'Keep your chin level.',
+  front: 'Look straight at the camera.', right: 'Slowly turn your head to your right.', left: 'Slowly turn your head to your left.',
 };
-const STEP_TEXT = { 0: 'Look straight at the camera.', 1: 'Slowly turn your head to your right.', 2: 'Slowly turn your head to your left.' }; // a right turn shows the left cheek
 
 const status = (t, bad = false) => { $('status').textContent = t; $('status').className = bad ? 'note bad' : 'note'; };
 const video = $('video');
-let stream = null, landmarker = null, toCanvas = null, core = null, shots = [null, null, null], raf = 0, prevLm = null, lastT = -1, shown = '';
+let stream = null, landmarker = null, toCanvas = null, sweep = null, raf = 0, lastT = -1, shown = '', ticks = [], thumbs = [];
 
 function cameraError(e) {
   if (!navigator.mediaDevices?.getUserMedia) return 'This page cannot use the camera.';
@@ -26,30 +28,62 @@ function cameraError(e) {
 }
 
 function prompt(text) { if (text !== shown) { shown = text; $('prompt').textContent = text; } }
-function setProgress(p) {
-  const bar = $('bar'), len = bar.getTotalLength();
-  bar.style.strokeDasharray = `${len * p} ${len}`;
-}
-function renderSteps() {
-  const want = core.wanted();
-  [...$('steps').children].forEach((li, i) => { li.className = !core.got[i] ? (i === want[0] ? 'now' : '') : 'done'; li.textContent = (core.got[i] ? '✓ ' : '') + NAMES[i]; });
-}
 
-function showShots() {
-  $('shots').replaceChildren(...NAMES.map((n, i) => {
+// A point on the face oval at `deg` degrees clockwise from the top, pushed out by `out`.
+const onRing = (deg, out = 0) => { const a = (deg * Math.PI) / 180; return [50 + (19 + out) * Math.sin(a), 37 - (27 + out) * Math.cos(a)]; };
+// Positive yaw is a turn to the user's right, which the mirrored preview shows on the right of the oval.
+const ringDeg = (yaw) => (yaw / sweep.centres.at(-1)) * RING_DEG;
+
+function buildRing() {
+  const g = $('ticks'), step = (2 * RING_DEG) / (sweep.centres.length * TICKS_PER_BIN);
+  g.replaceChildren();
+  ticks = sweep.centres.map((_, b) => Array.from({ length: TICKS_PER_BIN }, (_, k) => {
+    const deg = -RING_DEG + (b * TICKS_PER_BIN + k + 0.5) * step, [x1, y1] = onRing(deg, 1.2), [x2, y2] = onRing(deg, 3.4);
+    const l = document.createElementNS(SVG, 'line');
+    Object.entries({ x1, y1, x2, y2 }).forEach(([k2, v]) => l.setAttribute(k2, v.toFixed(2)));
+    g.append(l);
+    return l;
+  }));
+  $('shots').replaceChildren(...sweep.centres.map((c) => {
     const box = Object.assign(document.createElement('div'), { className: 'shot' });
-    const cv = Object.assign(document.createElement('canvas'), { width: shots[i]?.width ?? 3, height: shots[i]?.height ?? 4 });
-    if (shots[i]) cv.getContext('2d').drawImage(shots[i], 0, 0);
-    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Retake' });
-    b.addEventListener('click', () => retake(i));
-    box.append(cv, n, b);
+    const cv = Object.assign(document.createElement('canvas'), { width: 3, height: 4 });
+    box.append(cv, Object.assign(document.createElement('span'), { textContent: `${c > 0 ? '+' : ''}${c}°` }));
     return box;
   }));
-  $('review').hidden = !shots.some(Boolean);
-  $('use').disabled = !shots.every(Boolean);
+  thumbs = [...$('shots').children];
 }
 
-function flash() { const f = $('flash'); f.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('on'))); }
+function showBin(b) {
+  const f = sweep.best[b], box = thumbs[b], cv = box.firstChild, label = box.lastChild;
+  ticks[b].forEach((l) => l.classList.add('on'));
+  cv.width = 120; cv.height = Math.round((120 * f.data.height) / f.data.width);
+  const g = cv.getContext('2d');
+  g.setTransform(-1, 0, 0, 1, cv.width, 0); // mirrored, like the preview
+  g.drawImage(f.data, 0, 0, cv.width, cv.height);
+  label.textContent = `${sweep.centres[b] > 0 ? '+' : ''}${sweep.centres[b]}° · read ${f.yaw.toFixed(1)}° · sharp ${f.sharp.toFixed(0)}`;
+  box.classList.add('filled');
+}
+
+// Variance of the Laplacian over the face box: lower when the turn blurs the frame.
+function faceSharpness(c, lm) {
+  const xs = lm.map((p) => p.x * c.width), ys = lm.map((p) => p.y * c.height);
+  const x0 = Math.max(0, Math.floor(Math.min(...xs))), y0 = Math.max(0, Math.floor(Math.min(...ys)));
+  const w = Math.min(c.width, Math.ceil(Math.max(...xs))) - x0, h = Math.min(c.height, Math.ceil(Math.max(...ys))) - y0;
+  if (w < 3 || h < 3) return 0;
+  const px = c.getContext('2d').getImageData(x0, y0, w, h).data, gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) gray[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+  return sharpness(gray, w, h);
+}
+
+// The next thing to ask for: a fix for this frame, else the front, else the side with the most empty bins.
+function nextHint(frame) {
+  if (!frame) return 'noface';
+  if (frame.faceFrac < MIN_FACE) return 'closer';
+  if (Math.abs(frame.pitch) > PITCH_MAX) return 'level';
+  const empty = (sign) => sweep.centres.filter((c, i) => Math.sign(c) === sign && !sweep.best[i]).length;
+  if (!sweep.best[sweep.centres.indexOf(0)]) return 'front';
+  return empty(1) >= empty(-1) ? 'right' : 'left';
+}
 
 function tick(now) {
   raf = requestAnimationFrame(tick);
@@ -59,29 +93,28 @@ function tick(now) {
   try {
     const r = landmarker.detectForVideo(video, now), lm = r.faceLandmarks[0], m = r.facialTransformationMatrixes?.[0];
     if (lm && m) {
-      const ys = lm.map((p) => p.y);
-      frame = { yaw: yawFromMatrix(m.data), faceFrac: Math.max(...ys) - Math.min(...ys), jitter: prevLm ? jitter(prevLm, lm, video.videoWidth / video.videoHeight) : 1 };
-      prevLm = lm;
-    } else prevLm = null;
+      const ys = lm.map((p) => p.y), c = toCanvas(video); // the raw frame, not the mirrored preview
+      frame = { yaw: yawFromMatrix(m.data), pitch: pitchFromMatrix(m.data), faceFrac: Math.max(...ys) - Math.min(...ys), sharp: faceSharpness(c, lm), data: c };
+    }
   } catch (e) { status(`Face detection failed: ${e.message}`, true); return stopLoop(); }
-  const out = core.push(now, frame);
-  setProgress(out.progress);
-  if (out.captured !== null) {
-    shots[out.captured] = toCanvas(video); // the raw frame, not the mirrored preview
-    flash();
-    renderSteps();
-    showShots();
-  }
-  if (out.done) { stopLoop(); prompt('All three photos taken. Check them below.'); return; }
-  prompt(HINTS[out.hint] ?? STEP_TEXT[core.wanted()[0]]);
+  const out = sweep.push(frame);
+  if (out.kept) showBin(out.bin);
+  const dot = $('dot');
+  dot.style.visibility = frame ? 'visible' : 'hidden';
+  if (frame) { const [x, y] = onRing(ringDeg(Math.max(-55, Math.min(55, frame.yaw))), 2.3); dot.setAttribute('cx', x); dot.setAttribute('cy', y); }
+  $('count').textContent = `${sweep.best.filter(Boolean).length} of ${sweep.centres.length} angles`;
+  $('use').disabled = !sweep.ready();
+  if (sweep.progress() === 1) { stopLoop(); prompt('Done. Check the photos below.'); return; }
+  prompt(HINTS[nextHint(frame)]);
 }
-function startLoop() { cancelAnimationFrame(raf); prevLm = null; setProgress(0); raf = requestAnimationFrame(tick); }
-function stopLoop() { cancelAnimationFrame(raf); setProgress(0); }
-function retake(slot) {
-  core.retake(slot);
-  shots[slot] = null;
-  renderSteps();
-  showShots();
+function startLoop() { cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); }
+function stopLoop() { cancelAnimationFrame(raf); $('dot').style.visibility = 'hidden'; }
+
+function reset() {
+  sweep = createSweep();
+  buildRing();
+  $('use').disabled = true;
+  $('review').hidden = false;
   startLoop();
 }
 
@@ -95,7 +128,6 @@ async function start() {
   await video.play();
   $('start').hidden = true;
   $('stage').hidden = false;
-  $('steps').hidden = false;
   status('Loading face detection (offline, inside the extension)…');
   try {
     const a = await import('./lib/twin-spike/analyse.js');
@@ -103,21 +135,25 @@ async function start() {
     ({ landmarker } = await a.loadFaceModels({ wasm: new URL('./vendor/mediapipe/wasm', import.meta.url).href, faceModel: new URL('./vendor/mediapipe/face_landmarker.task', import.meta.url).href, video: true }));
   } catch (e) { status(`Could not load face detection: ${e.message}`, true); return; }
   status('');
-  core = createCapture();
-  shots = [null, null, null];
-  renderSteps();
-  prompt(STEP_TEXT[0]);
-  startLoop();
+  reset();
 }
 
 function stopCamera() { stopLoop(); stream?.getTracks().forEach((t) => t.stop()); stream = null; }
 
+// Stored order: front, left side, right side (what the panel's three slots and the 3-photo analysis expect), then the rest.
+function ordered() {
+  const [front, ...rest] = sweep.photos();
+  rest.sort((a, b) => b.yaw - a.yaw); // a positive yaw shows the left cheek
+  return [front, rest[0], rest.at(-1), ...rest.slice(1, -1)];
+}
+
 $('start').addEventListener('click', start);
+$('again').addEventListener('click', reset);
 $('use').addEventListener('click', async () => {
-  try { await photoStore.set(shots.map(toDataUrl)); } catch (e) { status(`Could not save the photos: ${e.message}`, true); return; }
+  try { await photoStore.set(ordered().map((f) => toDataUrl(f.data))); } catch (e) { status(`Could not save the photos: ${e.message}`, true); return; }
   stopCamera();
   $('stage').hidden = true;
-  $('use').disabled = true;
+  $('use').disabled = $('again').disabled = true;
   status('Photos saved. Go back to the Avatar Try-On panel; this tab closes now.');
   try {
     if (typeof chrome !== 'undefined' && chrome.tabs?.getCurrent) { const tab = await chrome.tabs.getCurrent(); if (tab) return chrome.tabs.remove(tab.id); }
@@ -125,4 +161,4 @@ $('use').addEventListener('click', async () => {
   } catch { /* the message above stays */ }
 });
 addEventListener('pagehide', stopCamera);
-window.__capture = { get core() { return core; }, get shots() { return shots; } }; // for checks from devtools
+window.__capture = { get sweep() { return sweep; } }; // for checks from devtools

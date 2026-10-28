@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lifelike idle avatar with emotes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.fig{transform-box:view-box;transform-origin:100px 505px;animation:sway 7.5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-3px) rotate(-1deg)}50%{transform:translateX(1px) rotate(.3deg)}75%{transform:translateX(3px) rotate(1deg)}}
+.torso{transform-box:view-box;transform-origin:100px 272px;animation:breathe 3.4s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.012,1.018)}}
+.head{transform-box:view-box;transform-origin:100px 108px;animation:look 11s ease-in-out infinite}
+@keyframes look{0%,10%{transform:rotate(0) translate(0,0)}18%,30%{transform:rotate(-5deg) translate(-3px,0)}38%,50%{transform:rotate(0) translate(0,0)}58%,70%{transform:rotate(4deg) translate(3px,0)}78%,84%{transform:rotate(0) translate(0,-1px)}92%,100%{transform:rotate(0) translate(0,0)}}
+.iris{animation:eyes 11s ease-in-out infinite}
+@keyframes eyes{0%,10%{transform:translate(0,0)}16%,30%{transform:translate(-2.4px,0)}36%,50%{transform:translate(0,0)}56%,70%{transform:translate(2.4px,0)}76%,84%{transform:translate(0,-1.4px)}90%,100%{transform:translate(0,0)}}
+.lid{transform-box:fill-box;transform-origin:50% 0;animation:blink 4.3s infinite}
+@keyframes blink{0%,90%,100%{transform:scaleY(0)}94%{transform:scaleY(1)}}
+.armL{transform-box:view-box;transform-origin:48px 172px;animation:armL 7.5s ease-in-out infinite}
+.armR{transform-box:view-box;transform-origin:152px 172px;animation:armR 7.5s ease-in-out infinite}
+@keyframes armL{0%,100%{transform:rotate(0)}50%{transform:rotate(2.5deg)}}
+@keyframes armR{0%,100%{transform:rotate(0)}50%{transform:rotate(-2deg)}}
+.shadow{transform-box:fill-box;transform-origin:center;animation:shadow 7.5s ease-in-out infinite}
+@keyframes shadow{0%,100%{transform:scaleX(1)}25%{transform:scaleX(.95) translateX(-3px)}75%{transform:scaleX(1.03) translateX(3px)}}
+.mouth,.brow{transition:d .35s ease}
+.blush{transition:opacity .4s ease}
+.emote{display:flex;flex-direction:column;align-items:center;gap:4px;width:60px;min-height:56px;padding:8px 4px;border:0;border-radius:14px;background:transparent;color:#b9b9bf;font:500 11px Inter,system-ui,sans-serif;cursor:pointer}
+.emote:hover{background:rgba(255,255,255,.06)}
+.emote.on{background:rgba(255,255,255,.12);color:#fff}
+.chip{min-width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#d4d4d8;font:600 14px Inter,system-ui,sans-serif}
+.chip.on{background:#f4f1ea;color:#111;border-color:#f4f1ea}
+@media (prefers-reduced-motion: reduce){.fig,.torso,.head,.iris,.armL,.armR,.shadow{animation:none}}
+</style>
+</helmet>
+<div style="width: 400px; height: 860px; position: relative; overflow: hidden; background: radial-gradient(120% 70% at 50% 38%, #24262c 0%, #121316 62%, #0c0d0f 100%); color: #ececee; font-family: Inter, system-ui, sans-serif">
+  <div style="position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; border-radius: 18px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(12px); z-index: 2">
+    <div style="flex: 1; min-width: 0">
+      <div style="font-size: 15px; font-weight: 600">Everyday Crew Tee</div>
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a3a3a8; margin-top: 2px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #6a5ad8"></span>Slate Blue · 95% cotton</div>
+    </div>
+    <button type="button" style="height: 44px; padding: 0 16px; border-radius: 12px; border: 0; background: #f4f1ea; color: #111; font: 600 14px Inter, system-ui, sans-serif">Read page</button>
+  </div>
+
+  <div style="position: absolute; top: 96px; left: 0; right: 0; height: 540px; display: flex; justify-content: center">
+    <svg viewBox="0 0 200 520" width="250" height="540" role="img" aria-label="Avatar idling: breathing, shifting weight and glancing around">
+      <defs>
+        <linearGradient id="skin" x1="0" x2="1"><stop offset="0" stop-color="#dba07a"></stop><stop offset=".6" stop-color="#c98a62"></stop><stop offset="1" stop-color="#a86d4a"></stop></linearGradient>
+        <linearGradient id="tee" x1="0" x2="1"><stop offset="0" stop-color="#7a68e4"></stop><stop offset=".55" stop-color="#6150cc"></stop><stop offset="1" stop-color="#4436a0"></stop></linearGradient>
+        <linearGradient id="short" x1="0" x2="1"><stop offset="0" stop-color="#46536d"></stop><stop offset=".6" stop-color="#36425a"></stop><stop offset="1" stop-color="#262f42"></stop></linearGradient>
+      </defs>
+      <ellipse class="shadow" cx="100" cy="508" rx="56" ry="7" fill="#000" opacity=".45"></ellipse>
+      <g class="fig">
+        <path fill="url(#skin)" d="M74 340 L72 420 Q71 450 77 480 L91 480 Q94 450 95 420 L98 342 Z"></path>
+        <path fill="url(#skin)" d="M126 340 L128 420 Q129 450 123 480 L109 480 Q106 450 105 420 L102 342 Z"></path>
+        <path fill="#f2f2f0" d="M74 476 Q70 498 64 503 L97 505 Q98 490 93 476 Z"></path>
+        <path fill="#f2f2f0" d="M126 476 Q130 498 136 503 L103 505 Q102 490 107 476 Z"></path>
+        <path fill="#8d939b" d="M63 502 L98 504 L98 508 L62 506 Z"></path>
+        <path fill="#8d939b" d="M137 502 L102 504 L102 508 L138 506 Z"></path>
+        <g>
+          <path fill="url(#short)" d="M66 268 L134 268 L140 352 Q122 356 103 352 L100 304 L97 352 Q78 356 60 352 Z"></path>
+          <path fill="#252e40" d="M66 265 L134 265 L135 278 L65 278 Z"></path>
+          <path d="M97 278 Q95 290 92 297 M103 278 Q105 290 108 297" stroke="#ededed" stroke-width="1.6" fill="none" stroke-linecap="round"></path>
+          <path d="M64 281 L61 348 M136 281 L139 348" stroke="#e9e9e9" stroke-width="1.3" opacity=".75"></path>
+          <path d="M60 347 Q78 351 97 347 M103 347 Q122 351 140 347" stroke="#1a2130" stroke-width="2" fill="none"></path>
+          <path d="M86 300 Q92 318 90 336 M114 300 Q108 318 110 336 M100 280 L100 304" stroke="#1a2130" stroke-width="1.2" fill="none" opacity=".55"></path>
+        </g>
+        <g class="armL"><path d="M47 176 Q42 210 44 240 Q46 270 51 296" stroke="#c48660" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="51" cy="302" rx="7.5" ry="10" fill="#bf805a"></ellipse></g>
+        <g class="armR"><path d="M153 176 Q158 210 156 240 Q154 270 149 296" stroke="#b97a55" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="149" cy="302" rx="7.5" ry="10" fill="#b0724e"></ellipse></g>
+        <g class="torso">
+          <path fill="#b97a55" d="M90 98 L110 98 L112 130 L88 130 Z"></path>
+          <path fill="url(#tee)" d="M88 122 Q100 132 112 122 L140 130 Q152 134 158 150 L164 186 L146 192 L140 168 L138 272 Q100 280 62 272 L60 168 L54 192 L36 186 L42 150 Q48 134 60 130 Z"></path>
+          <path d="M88 122 Q100 134 112 122" stroke="#3a2e8a" stroke-width="3" fill="none"></path>
+          <path d="M76 200 Q82 230 78 262 M124 200 Q118 230 122 262 M62 168 Q70 160 74 150 M138 168 Q130 160 126 150" stroke="#352a80" opacity=".35" fill="none" stroke-width="1.5"></path>
+          <path d="M36 186 L54 192 M146 192 L164 186" stroke="#352a80" stroke-width="2"></path>
+        </g>
+        <g class="head">
+          <ellipse cx="73" cy="76" rx="5" ry="8" fill="#c08259"></ellipse>
+          <ellipse cx="127" cy="76" rx="5" ry="8" fill="#b37550"></ellipse>
+          <ellipse cx="100" cy="72" rx="27" ry="33" fill="url(#skin)"></ellipse>
+          <path fill="#2b1d16" d="M72 76 C68 44 84 32 102 32 C124 32 134 46 128 76 C126 62 120 54 108 51 C98 57 84 55 76 60 C74 64 73 70 72 76 Z"></path>
+          <path d="M86 42 Q100 36 116 41" stroke="#4a3427" stroke-width="2" fill="none" opacity=".7"></path>
+          <ellipse cx="89" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse>
+          <ellipse cx="111" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse>
+          <g class="iris"><circle cx="89" cy="73" r="2.6" fill="#3a2418"></circle><circle cx="111" cy="73" r="2.6" fill="#3a2418"></circle><circle cx="90" cy="72" r=".8" fill="#fff"></circle><circle cx="112" cy="72" r=".8" fill="#fff"></circle></g>
+          <ellipse class="lid" cx="89" cy="71" rx="6" ry="5" fill="#c48660"></ellipse>
+          <ellipse class="lid" cx="111" cy="71" rx="6" ry="5" fill="#c48660"></ellipse>
+          <path class="brow" d="{{mood.browL}}" stroke="#2b1d16" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+          <path class="brow" d="{{mood.browR}}" stroke="#2b1d16" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+          <path d="M100 76 Q97 86 100 88 Q103 88.5 105 87" stroke="#9a5f3e" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+          <circle class="blush" cx="84" cy="86" r="5" fill="#e07a6a" opacity="{{mood.blush}}"></circle>
+          <circle class="blush" cx="116" cy="86" r="5" fill="#e07a6a" opacity="{{mood.blush}}"></circle>
+          <path class="mouth" d="{{mood.mouth}}" stroke="#7d3a30" stroke-width="2" fill="{{mood.fill}}" stroke-linecap="round" stroke-linejoin="round"></path>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <div style="position: absolute; top: 112px; right: 12px; display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 18px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08)" aria-label="Emotes">
+    <sc-for list="{{emotes}}" as="e" hint-placeholder-count="5">
+      <button type="button" class="{{e.cls}}" onClick="{{e.pick}}" aria-pressed="{{e.on}}">
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="9" fill="none" stroke="currentColor" stroke-width="1.5"></circle><circle cx="8" cy="9" r="1.1" fill="currentColor"></circle><circle cx="14" cy="9" r="1.1" fill="currentColor"></circle><path d="{{e.icon}}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+        {{e.label}}
+      </button>
+    </sc-for>
+  </div>
+
+  <div style="position: absolute; top: 590px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.08); font-size: 12px; color: #d4d4d8; white-space: nowrap">
+    <span style="width: 7px; height: 7px; border-radius: 50%; background: #7fc3a9"></span>{{status}}
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 200px; padding: 10px 16px 16px; border-radius: 24px 24px 0 0; background: #17181b; border-top: 1px solid rgba(255,255,255,.08); box-sizing: border-box">
+    <div style="width: 36px; height: 4px; border-radius: 2px; background: #3a3b40; margin: 0 auto 14px"></div>
+    <div style="display: flex; align-items: center; gap: 14px">
+      <div style="font-size: 40px; font-weight: 700; line-height: 1">M</div>
+      <div><div style="font-size: 14px; font-weight: 600">Fits you best</div><div style="font-size: 12px; color: #a3a3a8">Chest, waist and hip all inside the range.</div></div>
+    </div>
+    <fieldset style="border: 0; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px">
+      <legend style="position: absolute; width: 1px; height: 1px; overflow: hidden">Size</legend>
+      <button type="button" class="chip">XS</button><button type="button" class="chip">S</button><button type="button" class="chip on">M</button><button type="button" class="chip">L</button><button type="button" class="chip">XL</button><button type="button" class="chip">XXL</button>
+    </fieldset>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":400,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { auto: true, i: 0 };
+  }
+  componentDidMount() {
+    this.timer = setInterval(() => { if (this.state.auto) this.setState({ i: (this.state.i + 1) % 4 }); }, 2800);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  renderVals() {
+    const moods = [
+      { id: 'calm', label: 'Calm', mouth: 'M92 95 Q100 98.5 108 95', fill: 'none', browL: 'M83 64 Q89 61.5 95 63', browR: 'M105 63 Q111 61.5 117 64', blush: 0, icon: 'M7.5 14 Q11 15.5 14.5 14', status: 'Idle: breathing, glancing around' },
+      { id: 'happy', label: 'Happy', mouth: 'M89.5 92.5 Q100 103 110.5 92.5', fill: 'none', browL: 'M83 62.5 Q89 59.5 95 61.5', browR: 'M105 61.5 Q111 59.5 117 62.5', blush: 0.35, icon: 'M7 13 Q11 17.5 15 13', status: 'Smiling at the new shirt' },
+      { id: 'curious', label: 'Curious', mouth: 'M97 96 Q100 92.5 103 96 Q100 99.5 97 96 Z', fill: '#6e2b26', browL: 'M83 59.5 Q89 55.5 95 58.5', browR: 'M105 63.5 Q111 62.5 117 64.5', blush: 0, icon: 'M9.5 14.5 a1.5 1.5 0 1 0 3 0 a1.5 1.5 0 1 0 -3 0', status: 'Looking the fit over' },
+      { id: 'proud', label: 'Proud', mouth: 'M89 92 Q100 106 111 92 Q100 96.5 89 92 Z', fill: '#6e2b26', browL: 'M83 63 Q89 60 95 62', browR: 'M105 62 Q111 60 117 63', blush: 0.45, icon: 'M7 12.5 Q11 18 15 12.5 Z', status: 'Showing off the fit' },
+    ];
+    const s = this.state, mood = moods[s.i];
+    const emotes = [{ label: 'Auto', on: s.auto, icon: 'M8 14 L14 14', pick: () => this.setState({ auto: true }) }]
+      .concat(moods.map((m, i) => ({ label: m.label, icon: m.icon, on: !s.auto && s.i === i, pick: () => this.setState({ auto: false, i }) })));
+    emotes.forEach((e) => { e.cls = e.on ? 'emote on' : 'emote'; });
+    return { mood, emotes, status: s.auto ? mood.status : mood.label + ' (held)' };
+  }
+}
+</script>
+</body>
+</html>

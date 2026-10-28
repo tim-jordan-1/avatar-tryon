@@ -17,7 +17,7 @@ const pose = (u, mode) => {
   return { hipsY: rig.hips.position.y, ...Object.fromEntries(NAMES.flatMap((n) => ['x', 'y', 'z'].map((a) => [`${n}.${a}`, rig[n].rotation[a]]))) };
 };
 
-for (const mode of ['tryon', 'tryonCalm']) {
+for (const mode of ['tryon', 'tryonTight', 'tryonCalm']) {
   test(`${mode}: arms move under 2.5 m/s at the hand and the hop stays under 4 cm`, () => {
     const DT = 1 / 60, ARM = 0.6; // shoulder to hand, m
     let prev = pose(0, mode), maxHand = 0, maxHop = 0;
@@ -37,7 +37,7 @@ for (const mode of ['tryon', 'tryonCalm']) {
 
   test(`${mode}: starts and ends in the rest pose of the arms, with no jump`, () => {
     const a = pose(0, mode), b = pose(TRYON_SECONDS, mode);
-    for (const k of ['upperArmL.z', 'upperArmR.z', 'upperArmR.x', 'foreArmR.x', 'head.x', 'chest.y']) {
+    for (const k of ['upperArmL.z', 'upperArmR.z', 'upperArmR.x', 'foreArmL.x', 'foreArmR.x', 'head.x', 'head.z', 'chest.y']) {
       assert.ok(Math.abs(a[k] - b[k]) < 1e-6, `${k}: ${a[k]} -> ${b[k]}`);
     }
     assert.ok(Math.abs(a['upperArmL.z']) < 1e-6 && Math.abs(a['upperArmR.z']) < 1e-6, 'arms start in the rest pose');

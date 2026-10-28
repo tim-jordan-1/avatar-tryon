@@ -2,7 +2,7 @@
 
 A browser page that puts one t-shirt on the animated avatar and simulates it as a soft body with JoltPhysics.js 1.1.0 (WebAssembly). You can pick the fabric, the size and the motion.
 
-The avatar is the MakeHuman body (CC0), fitted to the tape measurements and rigged by `../twin-spike/mhavatar.js`. It uses MakeHuman's own skin weights, summed onto the bones that `../avatar-poc/anim.js` animates. It wears plain grey briefs. With face photos (the Chrome extension passes them), the head is the photo twin from `../twin-spike/head.js`, skinned to the same skeleton. The page imports modules from `../avatar-poc/` and `../twin-spike/`, so you must serve the repository root, not this folder. The page downloads the MakeHuman mesh, skeleton and weights (about 3 MB) from a pinned commit.
+The avatar is the MakeHuman body (CC0), fitted to the tape measurements and rigged by `../twin-spike/mhavatar.js`. It uses MakeHuman's own skin weights, summed onto the bones that `../avatar-poc/anim.js` animates. It wears a fitted base layer: trunks (male), or briefs and a crop top (female). A shader draws the base layer from the rest-pose position (`baseLayerPatch` in `tryon.js`). With face photos (the Chrome extension passes them), the head is the photo twin from `../twin-spike/head.js`, skinned to the same skeleton. The page imports modules from `../avatar-poc/` and `../twin-spike/`, so you must serve the repository root, not this folder. The page downloads the MakeHuman mesh, skeleton and weights (about 3 MB) from a pinned commit.
 
 ## Run it
 

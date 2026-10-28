@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Face capture with a live twin mirror</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.turn{transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.lid{transform-box:fill-box;transform-origin:50% 0;animation:blink 4.3s infinite}
+@keyframes blink{0%,90%,100%{transform:scaleY(0)}94%{transform:scaleY(1)}}
+.pose{flex:1;height:48px;border-radius:12px;border:1px solid #dcd8cf;background:#fff;color:#1d1d1f;font:600 14px Inter,system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.pose.on{border:2px solid #2f5d50}
+@media (prefers-reduced-motion: reduce){.turn{transition:none}}
+</style>
+</helmet>
+<div style="width: 720px; height: 820px; box-sizing: border-box; padding: 28px 32px; background: #f4f2ee; color: #1d1d1f; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; gap: 16px">
+  <div>
+    <h1 style="margin: 0; font-size: 22px">Build your face twin</h1>
+    <p style="margin: 4px 0 0; font-size: 13px; color: #5f5d58">Your twin copies your head as you move. Each photo you take shows up on it straight away.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+    <div style="position: relative; height: 400px; border-radius: 20px; overflow: hidden; background: radial-gradient(80% 90% at 50% 40%, #3b3f47 0%, #1c1e22 75%)">
+      <svg width="312" height="400" viewBox="0 0 312 400" role="img" aria-label="Camera view of you">
+        <path d="M40 400 Q50 300 156 292 Q262 300 272 400 Z" fill="#2a2d33"></path>
+        <path d="M130 250 L182 250 L186 300 L126 300 Z" fill="#4a4d55"></path>
+        <ellipse cx="156" cy="175" rx="68" ry="88" fill="#5a5e67"></ellipse>
+        <path d="M92 150 Q100 88 158 86 Q218 88 222 150 Q206 118 158 114 Q112 116 92 150 Z" fill="#2c2e33"></path>
+        <g class="turn" style="{{camFace}}">
+          <ellipse cx="132" cy="170" rx="9" ry="5" fill="#2a2c31"></ellipse>
+          <ellipse cx="180" cy="170" rx="9" ry="5" fill="#2a2c31"></ellipse>
+          <path d="M156 176 L162 204 L150 208" stroke="#3a3d44" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+          <path d="M140 230 Q156 237 172 230" stroke="#3a3d44" stroke-width="3" fill="none" stroke-linecap="round"></path>
+        </g>
+        <ellipse cx="156" cy="180" rx="92" ry="118" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="2" stroke-dasharray="6 6"></ellipse>
+      </svg>
+      <div style="position: absolute; top: 12px; left: 12px; height: 26px; padding: 0 10px; border-radius: 999px; background: rgba(0,0,0,.5); color: #fff; font-size: 12px; line-height: 26px">You · camera</div>
+    </div>
+
+    <div style="position: relative; height: 400px; border-radius: 20px; overflow: hidden; background: radial-gradient(90% 90% at 50% 40%, #fdfcfa 0%, #e9e5dc 100%); border: 1px solid #e3e0da">
+      <svg width="312" height="400" viewBox="40 14 120 154" role="img" aria-label="{{twinAlt}}">
+        <defs><linearGradient id="skin" x1="0" x2="1"><stop offset="0" stop-color="#dba07a"></stop><stop offset=".6" stop-color="#c98a62"></stop><stop offset="1" stop-color="#a86d4a"></stop></linearGradient></defs>
+        <path fill="#6150cc" d="M60 168 L62 136 Q76 126 88 122 Q100 132 112 122 Q124 126 138 136 L140 168 Z"></path>
+        <path fill="#b97a55" d="M90 98 L110 98 L112 128 Q100 134 88 128 Z"></path>
+        <g class="turn" style="{{twinHead}}">
+          <ellipse cx="{{earX}}" cy="76" rx="5" ry="8" fill="#c08259" opacity="{{earOp}}"></ellipse>
+          <ellipse cx="100" cy="72" rx="27" ry="33" fill="url(#skin)"></ellipse>
+          <path fill="#2b1d16" d="M72 76 C68 44 84 32 102 32 C124 32 134 46 128 76 C126 62 120 54 108 51 C98 57 84 55 76 60 C74 64 73 70 72 76 Z"></path>
+          <g class="turn" style="{{twinFace}}">
+            <ellipse cx="89" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse><ellipse cx="111" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse>
+            <circle cx="89" cy="73" r="2.6" fill="#3a2418"></circle><circle cx="111" cy="73" r="2.6" fill="#3a2418"></circle>
+            <ellipse class="lid" cx="89" cy="71" rx="6" ry="5" fill="#c48660"></ellipse><ellipse class="lid" cx="111" cy="71" rx="6" ry="5" fill="#c48660"></ellipse>
+            <path d="M83 63.5 Q89 61 95 62.5 M105 62.5 Q111 61 117 63.5" stroke="#2b1d16" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+            <path d="M100 76 Q97 86 100 88 Q103 88.5 105 87" stroke="#9a5f3e" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+            <path d="M90 93 Q100 101 110 93" stroke="#7d3a30" stroke-width="2" fill="none" stroke-linecap="round"></path>
+          </g>
+        </g>
+      </svg>
+      <div style="position: absolute; top: 12px; left: 12px; height: 26px; padding: 0 10px; border-radius: 999px; background: #1d1d1f; color: #fff; font-size: 12px; line-height: 26px">Your twin</div>
+      <div style="position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.9); font-size: 12px">
+        <div style="display: flex; justify-content: space-between; font-weight: 600"><span>Likeness</span><span>{{count}} of 3 photos</span></div>
+        <div style="height: 6px; border-radius: 3px; background: #e3e0da; margin-top: 6px"><div style="{{barStyle}}"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="font-size: 13px; font-weight: 600; color: #5f5d58">Try a pose (the camera takes it when you hold still)</div>
+  <div style="display: flex; gap: 10px" role="group" aria-label="Pose">
+    <sc-for list="{{poses}}" as="p" hint-placeholder-count="3">
+      <button type="button" class="{{p.cls}}" onClick="{{p.pick}}" aria-pressed="{{p.on}}">
+        <sc-if value="{{p.done}}" hint-placeholder-val="{{false}}"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#2f5d50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12 L10 17 L19 7"></path></svg></sc-if>
+        {{p.label}}
+      </button>
+    </sc-for>
+  </div>
+
+  <div style="display: flex; gap: 10px; margin-top: auto">
+    <button type="button" onClick="{{reset}}" style="height: 48px; padding: 0 18px; border-radius: 12px; border: 1px solid #dcd8cf; background: #fff; color: #1d1d1f; font: 600 14px Inter, system-ui, sans-serif">Start over</button>
+    <button type="button" style="{{useStyle}}">Use this twin</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":820}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { yaw: 0, done: { front: true, left: false, right: false } }; }
+  renderVals() {
+    const { yaw, done } = this.state;
+    const P = [{ id: 'left', label: 'Turn left', y: -1 }, { id: 'front', label: 'Face front', y: 0 }, { id: 'right', label: 'Turn right', y: 1 }];
+    const count = Object.values(done).filter(Boolean).length;
+    const poses = P.map((p) => ({
+      label: p.label, on: p.y === yaw, done: done[p.id], cls: p.y === yaw ? 'pose on' : 'pose',
+      pick: () => this.setState({ yaw: p.y, done: { ...done, [p.id]: true } }),
+    }));
+    return {
+      poses, count,
+      camFace: 'transform: translateX(' + (yaw * 24) + 'px)',
+      twinHead: 'transform-box: view-box; transform-origin: 100px 100px; transform: rotate(' + (yaw * 4) + 'deg)',
+      twinFace: 'transform: translateX(' + (yaw * 9) + 'px)',
+      earX: yaw < 0 ? 127 : 73, earOp: yaw === 0 ? 0 : 1,
+      twinAlt: 'Avatar head mirroring your pose, built from ' + count + ' of 3 photos',
+      barStyle: 'height: 100%; border-radius: 3px; background: #2f5d50; transition: width .4s ease; width: ' + Math.round((count / 3) * 100) + '%',
+      reset: () => this.setState({ yaw: 0, done: { front: false, left: false, right: false } }),
+      useStyle: 'flex: 1; height: 48px; border-radius: 12px; border: 0; background: #2f5d50; color: #fff; font: 600 14px Inter, system-ui, sans-serif; opacity: ' + (count === 3 ? 1 : 0.45),
+    };
+  }
+}
+</script>
+</body>
+</html>

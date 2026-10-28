@@ -158,6 +158,15 @@
   .motion button:hover, .views button:hover { color: var(--ink); background: var(--hover); }
   .motion button[aria-pressed="true"], .views button[aria-pressed="true"] { background: var(--pressed); color: var(--ink); }
 
+  /* The left rail: the body map. Each zone button is a piece of the figure; the camera frames that part of the body. */
+  .bodymap { position: absolute; left: 12px; top: 112px; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; border-radius: 16px; }
+  .bodymap button { width: 52px; border: 0; background: transparent; border-radius: 12px; padding: 3px 0; display: grid; place-items: center; transition: background 200ms var(--ease-out); }
+  .bodymap button:hover { background: var(--hover); }
+  .bodymap svg { display: block; fill: var(--muted); opacity: 0.45; transition: fill 200ms, opacity 200ms; }
+  .bodymap button[aria-pressed="true"] svg, .bodymap[data-zone="full"] svg { fill: var(--good); opacity: 1; }
+  .bodymap button[aria-pressed="true"] { background: var(--pressed); }
+  .bodymap [data-zone="full"] { min-height: 32px; margin-top: 4px; font-size: 11px; color: var(--muted); }
+  .bodymap [data-zone="full"][aria-pressed="true"] { color: var(--ink); }
   .views {
     position: absolute; left: 50%; bottom: calc(var(--peek) + 10px); transform: translateX(-50%); z-index: 1;
     display: flex; gap: 2px; padding: 4px; border-radius: 999px;
@@ -405,6 +414,13 @@
   <button type="button" class="fx glass" id="fx" role="switch" aria-checked="true" title="Try-on animation, sparkles and rim light"><span class="switch" aria-hidden="true"></span>Effects</button>
   </div>
 
+  <div class="bodymap glass" role="group" aria-label="Frame the camera on" id="bodymap" data-zone="full">
+    <button type="button" data-zone="face" aria-pressed="false" aria-label="Face" title="Face"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><ellipse cx="11" cy="11" rx="8" ry="9.5"/></svg></button>
+    <button type="button" data-zone="torso" aria-pressed="false" aria-label="Torso" title="Torso"><svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><path d="M15 1 Q20 4 25 1 L35 5 L39 22 L33 23 L30 12 L30 39 L10 39 L10 12 L7 23 L1 22 L5 5 Z"/></svg></button>
+    <button type="button" data-zone="legs" aria-pressed="false" aria-label="Legs" title="Legs"><svg width="24" height="48" viewBox="0 0 24 48" aria-hidden="true"><path d="M2 1 L22 1 L21 47 L14 47 L12 14 L10 47 L3 47 Z"/></svg></button>
+    <button type="button" data-zone="full" aria-pressed="true" aria-label="Full body" title="Full body">Full</button>
+  </div>
+
   <div class="views glass" role="group" aria-label="Camera view" id="views">
     <button type="button" data-view="front" aria-pressed="false">Front</button>
     <button type="button" data-view="side" aria-pressed="false">Side</button>
@@ -484,7 +500,7 @@
     <!-- FACE -->
     <div role="tabpanel" id="pane-face" aria-labelledby="tab-face" tabindex="0" hidden>
       <button type="button" class="btn primary" id="camera"><svg class="i" aria-hidden="true"><use href="#ic-camera"/></svg>Take photos with camera</button>
-      <p class="note">The camera takes the front photo, then each side, by itself. Or choose three photo files:</p>
+      <p class="note">The camera takes up to 11 photos while you turn your head once. Or choose three photo files:</p>
       <div class="slots">
         <label class="slot"><span class="thumb" id="img0"><svg class="i" aria-hidden="true"><use href="#ic-face-front"/></svg></span>Front<input class="sr" type="file" accept="image/*" data-slot="0"></label>
         <label class="slot"><span class="thumb" id="img1"><svg class="i" aria-hidden="true"><use href="#ic-face-left"/></svg></span>Left side<input class="sr" type="file" accept="image/*" data-slot="1"></label>

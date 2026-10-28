@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>One-sweep face scan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.tick{stroke:rgba(255,255,255,.22);animation:tick 6s linear infinite}
+@keyframes tick{0%{stroke:rgba(255,255,255,.22)}4%,88%{stroke:#7fc3a9}100%{stroke:rgba(255,255,255,.22)}}
+.face{animation:turn 6s ease-in-out infinite}
+@keyframes turn{0%,8%{transform:translateX(0)}30%,40%{transform:translateX(-26px)}50%,58%{transform:translateX(0)}80%,90%{transform:translateX(26px)}100%{transform:translateX(0)}}
+.snap{opacity:.35;animation:snap 6s linear infinite}
+@keyframes snap{0%{opacity:.35}6%,92%{opacity:1}100%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){.tick,.face,.snap{animation:none}.tick{stroke:#7fc3a9}.snap{opacity:1}}
+</style>
+</helmet>
+<div style="width: 720px; height: 820px; box-sizing: border-box; padding: 28px 32px; background: #0f1012; color: #ececee; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; gap: 18px">
+  <div style="align-self: stretch; display: flex; justify-content: space-between; align-items: flex-end">
+    <div>
+      <h1 style="margin: 0; font-size: 22px">Scan your face</h1>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #a3a3a8">One slow turn. We keep the three best frames.</p>
+    </div>
+    <div style="font-size: 12px; color: #a6dcc6; font-weight: 600">Nothing is uploaded</div>
+  </div>
+
+  <svg width="560" height="500" viewBox="0 0 560 500" role="img" aria-label="Round viewfinder; ticks around the edge fill green as the head turns left, then right">
+    <defs><clipPath id="vf"><circle cx="280" cy="250" r="190"></circle></clipPath></defs>
+    <circle cx="280" cy="250" r="190" fill="#24272c"></circle>
+    <g clip-path="url(#vf)">
+      <path d="M140 500 Q150 370 280 360 Q410 370 420 500 Z" fill="#33363d"></path>
+      <path d="M252 300 L308 300 L312 370 L248 370 Z" fill="#4a4d55"></path>
+      <ellipse cx="280" cy="220" rx="78" ry="100" fill="#5a5e67"></ellipse>
+      <path d="M206 190 Q214 118 282 116 Q352 118 356 190 Q338 150 282 146 Q228 148 206 190 Z" fill="#2c2e33"></path>
+      <g class="face">
+        <ellipse cx="252" cy="214" rx="10" ry="5.5" fill="#2a2c31"></ellipse>
+        <ellipse cx="308" cy="214" rx="10" ry="5.5" fill="#2a2c31"></ellipse>
+        <path d="M280 222 L286 252 L274 256" stroke="#3a3d44" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M262 280 Q280 288 298 280" stroke="#3a3d44" stroke-width="3" fill="none" stroke-linecap="round"></path>
+      </g>
+    </g>
+    <sc-for list="{{ticks}}" as="t" hint-placeholder-count="72">
+      <line class="tick" x1="280" y1="38" x2="280" y2="{{t.y2}}" stroke-width="4" stroke-linecap="round" transform="{{t.rot}}" style="{{t.delay}}"></line>
+    </sc-for>
+  </svg>
+
+  <div style="font-size: 18px; font-weight: 600; text-align: center">Turn slowly to your left, then to your right</div>
+  <div style="font-size: 13px; color: #a3a3a8; margin-top: -10px">Keep your shoulders still. Glasses off if you can.</div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-self: stretch">
+    <div class="snap" style="height: 64px; border-radius: 14px; background: #1d1f24; border: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 600">Front ✓</div>
+    <div class="snap" style="height: 64px; border-radius: 14px; background: #1d1f24; border: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 600; animation-delay: 1.6s">Left ✓</div>
+    <div class="snap" style="height: 64px; border-radius: 14px; background: #1d1f24; border: 1px solid rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 600; animation-delay: 4.6s">Right ✓</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // Left half fills first (top round to bottom, anticlockwise), then the right half.
+    const ticks = [];
+    for (let i = 0; i < 72; i++) {
+      const a = i * 5, left = a >= 180;
+      const order = left ? (360 - a) / 5 : 36 + a / 5;
+      ticks.push({ rot: 'rotate(' + a + ' 280 250)', y2: i % 6 === 0 ? 52 : 48, delay: 'animation-delay: ' + (order * 0.075).toFixed(2) + 's' });
+    }
+    return { ticks };
+  }
+}
+</script>
+</body>
+</html>

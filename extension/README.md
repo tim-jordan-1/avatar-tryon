@@ -26,12 +26,14 @@ Everything runs on your computer. Your measurements stay in Chrome's extension s
    - Click the **S** size chip: chest and waist turn "tight", and the shirt gets smaller. A "We suggest M" tag shows that M is still the recommended size.
    - Click **Walk** or **Arms** in the motion bar on the right: the cloth follows the body.
    - Drag in the 3D view to orbit. Scroll to zoom. Use Front, Side, Back and ¾ under the avatar.
+   - Click the face, the torso or the legs on the body map at the left of the stage. The camera moves to frame that part. **Full** shows the whole body again.
+   - Move the pointer over the stage. The avatar's eyes follow it first, and then its head turns to it.
    - Open the **Me** tab. Enter your own measurements, pick Male or Female, and click **Save and rebuild avatar**.
    - Open the **Face** tab. Click **Take photos with camera** (see below), or choose three photo files and click **Use these photos**.
 
 ## The panel
 
-The avatar fills the top of the panel. A bar at the top shows the product name, its colour, the fabric and the **Read page** button. A small status message shows under the bar while the panel works, and stays there if something fails.
+The avatar fills the top of the panel. When it stands idle, its eyes and head follow the pointer over the stage. When the pointer leaves, it looks ahead again. A bar at the top shows the product name, its colour, the fabric and the **Read page** button. A small status message shows under the bar while the panel works, and stays there if something fails.
 
 A sheet at the bottom holds the size choice. It shows the selected size in large type and one sentence about how it fits. The recommended size has a green dot. Under the sizes are three tabs:
 
@@ -39,7 +41,11 @@ A sheet at the bottom holds the size choice. It shows the selected size in large
 - **Me**: your measurements and sex.
 - **Face**: the camera button, the three photo slots and the face analysis.
 
-When you press **Read page**, or choose another size, the avatar tries the shirt on. It looks down at the shirt, turns to see its sides, hops and settles. A card shows over the stage for about 2 seconds with the product, the size and the fit: **Perfect fit** if every region is good, **Tight fit** if any region is tight, and **Good fit** otherwise. Click the card or press Escape to close it. Sparkles show behind the avatar and a coloured rim light shows on it while it tries the shirt on. A rebuild of the avatar does not start this.
+A body map at the left of the stage frames the camera: the face, the torso, the legs, or **Full** for the whole body. The camera keeps the Front, Side, Back or ¾ direction. When the panel reads a top, it frames the torso.
+
+The avatar wears a fitted base layer that the shirt goes over. A male avatar wears charcoal trunks. A female avatar wears charcoal briefs and a fitted crop top. The base layer is skin-tight, so the hip and thigh shapes stay true to the measurements.
+
+When you press **Read page**, or choose another size, the avatar tries the shirt on. It looks down at the shirt and turns to see its sides. If the fit is good, it hops and pumps its fist. If any region is tight, it shrugs with its palms up and tilts its head instead. A card shows over the stage for about 2 seconds with the product, the size and the fit: **Perfect fit** if every region is good, **Tight fit** if any region is tight, and **Good fit** otherwise. Click the card or press Escape to close it. Sparkles show behind the avatar and a coloured rim light shows on it while it tries the shirt on. A rebuild of the avatar does not start this.
 
 The **Effects** switch under the motion buttons turns off the try-on animation, the card animation, the sparkles and the rim light. The card still shows. The panel keeps your choice in this browser. If your system is set to reduce motion, Effects is off at first. If you turn it on, the avatar does a calm version and there are no sparkles.
 
@@ -51,7 +57,7 @@ After you change a source file, run the build again and click the reload icon on
 
 ## Face photos
 
-**Take photos with camera** opens `capture.html` in a new tab (Chrome does not reliably show the camera prompt in a side panel). Click **Start camera** and allow it. The page watches your head turn with MediaPipe and takes each photo by itself when the pose holds for about 0.4 s: first straight at the camera, then a turn to each side (35 to 70 degrees, either side first). A ring fills while you hold the pose, and the shutter flashes at each photo. You can retake any photo. **Use these photos** saves them, stops the camera and closes the tab. The panel then analyses them (hair length and colour, skin tone) and rebuilds the avatar.
+**Take photos with camera** opens `capture.html` in a new tab (Chrome does not reliably show the camera prompt in a side panel). Click **Start camera** and allow it. Look at the camera, then turn your head slowly to one side and then to the other. The page watches the turn with MediaPipe and keeps the sharpest frame near each 10-degree step, from -50 to +50 degrees: up to 11 photos (`../sweep-spike/sweep.js`). A ring of ticks around the face oval fills for each step that has a photo, and a dot on the ring shows your head turn. Under the camera, each photo shows its step, the turn that MediaPipe read, and its sharpness. **Use these photos** is ready when the front and both 50-degree steps have a photo. It saves the photos, stops the camera and closes the tab. **Scan again** starts a new turn. The whole avatar, face included, takes one skin colour: the median face skin colour that the panel measures in the photos. The photos add only fine detail to the face, such as brows, lips and lids. Their light and shadows are removed, and the detail fades out below the chin (`../twin-spike/head.js`). The panel then analyses them (hair length and colour, skin tone) and rebuilds the avatar.
 
 Photos are JPEG data URLs in `chrome.storage.local` (key `photos`). Nothing is uploaded. **Remove photos** deletes them.
 
@@ -63,9 +69,9 @@ The panel can read any page, but the try-on needs a body-measurement size chart 
 
 | File | What it does |
 |---|---|
-| `capture.html`, `capture.js` | The guided camera capture page. |
-| `capture-core.js` | The capture logic with no browser APIs: head yaw from the pose matrix, the hold-steady state machine, side labelling by yaw sign. Tested by `capture-core.test.mjs`. |
-| `photo-store.js` | Saves and loads the three photos (`chrome.storage.local`, or `localStorage` as a plain page). |
+| `capture.html`, `capture.js` | The one-sweep camera capture page. |
+| `capture-core.js` | Head yaw from the pose matrix, used by the capture page. It also holds the older hold-steady state machine, which `../sweep-spike/` uses for comparison. Tested by `capture-core.test.mjs`. |
+| `photo-store.js` | Saves and loads the photos: front, left side, right side, then the other sweep photos. Uses `chrome.storage.local`, or `localStorage` as a plain page. |
 | `manifest.json` | Manifest V3: side panel, `scripting`, `activeTab`, `storage`; `wasm-unsafe-eval` for the physics engine. |
 | `background.js` | Opens the side panel when you click the toolbar button. |
 | `extract.js` | Runs inside the product page: reads JSON-LD Product data, the material and gsm from the text, and every table as markdown. |
@@ -93,7 +99,7 @@ Checked as a plain page in a browser, not as a loaded extension:
 
 - The example reads as Everyday Crew Tee, Slate Blue, 95% cotton 5% elastane, 180 gsm, jersey.
 - For the default man (178 cm, chest 100 cm), the panel recommends M, with chest, waist and hip all "good". Size S shows chest and waist "tight" and hip "snug".
-- The avatar is the MakeHuman body fitted to the measurements, in grey briefs. With size M, the shirt has a garment chest of 112 cm. Over a 10 s walk, 0.09% of the cloth vertices go inside the body, and the physics step takes 2.4 ms.
+- The avatar is the MakeHuman body fitted to the measurements, in a fitted base layer. With size M, the shirt has a garment chest of 112 cm. Over a 10 s walk, 0.09% of the cloth vertices go inside the body, and the physics step takes 2.4 ms.
 - With the sample photos stored, the panel builds the photo twin: the head textured from the photos and the body in the measured skin tone, skinned to the same skeleton. Over a 5 s walk, 0.1% of the cloth vertices go inside the body.
 - If the avatar cannot be built (for example, a model file fails to load), the panel says why instead of staying empty. The fit table still works.
 - Face photos, as a plain page: the three samples in `twin-spike/samples/` give the analysis table (short dark brown hair, skin tone), and the built panel makes no request outside `localhost`. A fake camera (a canvas stream cycling through the samples) takes the front photo and both sides, in either side order, and puts each in the right slot.

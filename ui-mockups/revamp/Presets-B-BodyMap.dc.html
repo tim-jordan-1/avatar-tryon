@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Camera presets from a body-map minimap</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.cam{transform-origin:50% 370px;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.fig{transform-box:view-box;transform-origin:100px 505px;animation:sway 7.5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-2px) rotate(-.8deg)}75%{transform:translateX(2px) rotate(.8deg)}}
+.head{transform-box:view-box;transform-origin:100px 108px;animation:look 11s ease-in-out infinite}
+@keyframes look{0%,10%{transform:rotate(0)}18%,30%{transform:rotate(-5deg) translateX(-3px)}38%,50%{transform:rotate(0)}58%,70%{transform:rotate(4deg) translateX(3px)}78%,100%{transform:rotate(0)}}
+.lid{transform-box:fill-box;transform-origin:50% 0;animation:blink 4.3s infinite}
+@keyframes blink{0%,90%,100%{transform:scaleY(0)}94%{transform:scaleY(1)}}
+.layer,.mz{transition:opacity .4s ease,fill .25s ease}
+.hit{position:absolute;left:0;right:0;border:0;background:transparent;cursor:pointer;border-radius:10px}
+.hit:focus-visible{outline:2px solid #2f5d50}
+.round{width:44px;height:44px;border-radius:50%;border:1px solid #dcd8cf;background:#fff;color:#1d1d1f;display:flex;align-items:center;justify-content:center;cursor:pointer}
+@media (prefers-reduced-motion: reduce){.fig,.head{animation:none}.cam{transition:none}}
+</style>
+</helmet>
+<div style="width: 400px; height: 860px; position: relative; overflow: hidden; background: #f4f2ee; color: #1d1d1f; font-family: Inter, system-ui, sans-serif">
+  <div style="position: absolute; top: 0; left: 0; right: 0; height: 740px; overflow: hidden; background: radial-gradient(110% 70% at 50% 45%, #fdfcfa 0%, #efece5 70%, #e7e3da 100%)">
+    <div class="cam" style="{{camStyle}}">
+      <div style="height: 740px; display: flex; justify-content: center">
+        <svg viewBox="0 0 200 520" width="216" height="560" style="margin-top: 80px" role="img" aria-label="{{alt}}">
+          <defs>
+            <linearGradient id="skin" x1="0" x2="1"><stop offset="0" stop-color="#dba07a"></stop><stop offset=".6" stop-color="#c98a62"></stop><stop offset="1" stop-color="#a86d4a"></stop></linearGradient>
+            <linearGradient id="tee" x1="0" x2="1"><stop offset="0" stop-color="#7a68e4"></stop><stop offset=".55" stop-color="#6150cc"></stop><stop offset="1" stop-color="#4436a0"></stop></linearGradient>
+            <linearGradient id="short" x1="0" x2="1"><stop offset="0" stop-color="#46536d"></stop><stop offset="1" stop-color="#262f42"></stop></linearGradient>
+            <linearGradient id="chino" x1="0" x2="1"><stop offset="0" stop-color="#c8b28a"></stop><stop offset=".6" stop-color="#b59d73"></stop><stop offset="1" stop-color="#97805a"></stop></linearGradient>
+          </defs>
+          <ellipse cx="100" cy="508" rx="56" ry="7" fill="#000" opacity=".14"></ellipse>
+          <g class="fig">
+            <path fill="url(#skin)" d="M74 340 L72 420 Q71 450 77 480 L91 480 Q94 450 95 420 L98 342 Z M126 340 L128 420 Q129 450 123 480 L109 480 Q106 450 105 420 L102 342 Z"></path>
+            <path fill="#fbfbfa" stroke="#d8d6d0" stroke-width=".8" d="M74 476 Q70 498 64 503 L97 505 Q98 490 93 476 Z M126 476 Q130 498 136 503 L103 505 Q102 490 107 476 Z"></path>
+            <path fill="#8d939b" d="M63 502 L98 504 L98 508 L62 506 Z M137 502 L102 504 L102 508 L138 506 Z"></path>
+            <g class="layer" opacity="{{shortsOp}}">
+              <path fill="url(#short)" d="M66 268 L134 268 L140 352 Q122 356 103 352 L100 304 L97 352 Q78 356 60 352 Z"></path>
+              <path fill="#252e40" d="M66 265 L134 265 L135 278 L65 278 Z"></path>
+              <path d="M97 278 Q95 290 92 297 M103 278 Q105 290 108 297 M64 281 L61 348 M136 281 L139 348" stroke="#ededed" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+            </g>
+            <g class="layer" opacity="{{pantsOp}}">
+              <path fill="url(#chino)" d="M66 266 L134 266 L136 330 L131 478 L107 480 L101 304 L99 304 L93 480 L69 478 L64 330 Z"></path>
+              <path fill="#a38b63" d="M66 261 L134 261 L134 274 L66 274 Z M68 468 L93 470 L93 480 L69 478 Z M132 468 L107 470 L107 480 L131 478 Z"></path>
+              <path fill="#8e7854" d="M73 259 h4 v17 h-4 Z M123 259 h4 v17 h-4 Z"></path>
+              <path d="M84 300 L82 466 M116 300 L118 466 M71 276 Q79 289 77 305 M129 276 Q121 289 123 305" stroke="#7f6a49" stroke-width="1.1" fill="none" opacity=".6"></path>
+            </g>
+            <path d="M47 176 Q42 210 44 240 Q46 270 51 296" stroke="#c48660" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="51" cy="302" rx="7.5" ry="10" fill="#bf805a"></ellipse>
+            <path d="M153 176 Q158 210 156 240 Q154 270 149 296" stroke="#b97a55" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="149" cy="302" rx="7.5" ry="10" fill="#b0724e"></ellipse>
+            <path fill="#b97a55" d="M90 98 L110 98 L112 130 L88 130 Z"></path>
+            <path fill="url(#tee)" d="M88 122 Q100 132 112 122 L140 130 Q152 134 158 150 L164 186 L146 192 L140 168 L138 272 Q100 280 62 272 L60 168 L54 192 L36 186 L42 150 Q48 134 60 130 Z"></path>
+            <path d="M88 122 Q100 134 112 122" stroke="#3a2e8a" stroke-width="3" fill="none"></path>
+            <path d="M76 200 Q82 230 78 262 M124 200 Q118 230 122 262" stroke="#352a80" opacity=".35" fill="none" stroke-width="1.5"></path>
+            <g class="head">
+              <ellipse cx="73" cy="76" rx="5" ry="8" fill="#c08259"></ellipse>
+              <ellipse cx="127" cy="76" rx="5" ry="8" fill="#b37550"></ellipse>
+              <ellipse cx="100" cy="72" rx="27" ry="33" fill="url(#skin)"></ellipse>
+              <path fill="#2b1d16" d="M72 76 C68 44 84 32 102 32 C124 32 134 46 128 76 C126 62 120 54 108 51 C98 57 84 55 76 60 C74 64 73 70 72 76 Z"></path>
+              <ellipse cx="89" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse><ellipse cx="111" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse>
+              <circle cx="89" cy="73" r="2.6" fill="#3a2418"></circle><circle cx="111" cy="73" r="2.6" fill="#3a2418"></circle>
+              <ellipse class="lid" cx="89" cy="71" rx="6" ry="5" fill="#c48660"></ellipse><ellipse class="lid" cx="111" cy="71" rx="6" ry="5" fill="#c48660"></ellipse>
+              <path d="M83 63.5 Q89 61 95 62.5 M105 62.5 Q111 61 117 63.5" stroke="#2b1d16" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+              <path d="M100 76 Q97 86 100 88 Q103 88.5 105 87" stroke="#9a5f3e" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+              <path d="M91 94 Q100 100 109 94" stroke="#7d3a30" stroke-width="2" fill="none" stroke-linecap="round"></path>
+              <g class="layer" opacity="{{glassesOp}}">
+                <path fill="#14181f" d="M79 67 h19 v6 q0 8 -9.5 8 q-9.5 0 -9.5 -8 Z M102 67 h19 v6 q0 8 -9.5 8 q-9.5 0 -9.5 -8 Z"></path>
+                <path d="M98 69.5 Q100 68 102 69.5 M79 68 L73 71 M121 68 L127 71 M79 67 h19 M102 67 h19" stroke="#c9a34a" stroke-width="1.3" fill="none"></path>
+                <path d="M82 70 l6 -1.5 M105 70 l6 -1.5" stroke="#fff" stroke-width="1" opacity=".4"></path>
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 14px; border-radius: 18px; background: rgba(255,255,255,.85); border: 1px solid #e3e0da; backdrop-filter: blur(12px)">
+    <div style="width: 40px; height: 40px; border-radius: 10px; background: #ebe7df; display: flex; align-items: center; justify-content: center">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#2f5d50" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{productIcon}}"></path></svg>
+    </div>
+    <div style="flex: 1; min-width: 0">
+      <div style="font-size: 15px; font-weight: 600">{{product}}</div>
+      <div style="font-size: 12px; color: #5f5d58; margin-top: 2px">{{productSub}}</div>
+    </div>
+    <button type="button" style="height: 44px; padding: 0 14px; border-radius: 12px; border: 0; background: #1d1d1f; color: #fff; font: 600 14px Inter, system-ui, sans-serif">Read page</button>
+  </div>
+
+  <div style="position: absolute; left: 16px; top: 640px; display: flex; align-items: center; gap: 8px">
+    <button type="button" class="round" aria-label="Turn left"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 7 L4 12 L9 17 M4 12 H15 Q20 12 20 17"></path></svg></button>
+    <div style="font-size: 13px; font-weight: 600; min-width: 44px; text-align: center">Front</div>
+    <button type="button" class="round" aria-label="Turn right"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 7 L20 12 L15 17 M20 12 H9 Q4 12 4 17"></path></svg></button>
+  </div>
+
+  <div style="position: absolute; right: 14px; top: 470px; width: 92px; padding: 10px 8px 8px; border-radius: 18px; background: rgba(255,255,255,.92); border: 1px solid #e3e0da; box-shadow: 0 8px 24px rgba(40,30,10,.08); box-sizing: border-box">
+    <div style="position: relative; width: 76px; height: 168px; margin: 0 auto">
+      <svg width="76" height="168" viewBox="0 0 76 168" aria-hidden="true">
+        <circle class="mz" cx="38" cy="16" r="12" fill="{{mz.face}}"></circle>
+        <path class="mz" d="M20 34 Q38 28 56 34 L60 72 L54 74 L52 88 L24 88 L22 74 L16 72 Z" fill="{{mz.torso}}"></path>
+        <path class="mz" d="M24 92 L52 92 L50 164 L41 164 L38 110 L35 164 L26 164 Z" fill="{{mz.legs}}"></path>
+      </svg>
+      <button type="button" class="hit" style="top: 0; height: 30px" onClick="{{goFace}}" aria-label="Frame the face" aria-pressed="{{isFace}}"></button>
+      <button type="button" class="hit" style="top: 30px; height: 60px" onClick="{{goTorso}}" aria-label="Frame the torso" aria-pressed="{{isTorso}}"></button>
+      <button type="button" class="hit" style="top: 90px; height: 78px" onClick="{{goLegs}}" aria-label="Frame the legs" aria-pressed="{{isLegs}}"></button>
+    </div>
+    <button type="button" onClick="{{goFull}}" aria-pressed="{{isFull}}" style="{{fullStyle}}">Full body</button>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 120px; padding: 16px; background: #fff; border-top: 1px solid #e3e0da; border-radius: 24px 24px 0 0; box-sizing: border-box; display: flex; align-items: center; gap: 14px">
+    <div style="font-size: 40px; font-weight: 700; line-height: 1">{{size}}</div>
+    <div style="flex: 1; min-width: 0"><div style="font-size: 14px; font-weight: 600">{{verdict}}</div><div style="font-size: 12px; color: #5f5d58">{{verdictSub}}</div></div>
+    <button type="button" style="height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid #dcd8cf; background: #fff; color: #1d1d1f; font: 600 13px Inter, system-ui, sans-serif">Details</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":400,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { zone: 'legs' }; }
+  renderVals() {
+    const tee = 'M8 4 L4 6 L2 11 L5 12 L6 9 L6 20 L18 20 L18 9 L19 12 L22 11 L20 6 L16 4 Q12 7 8 4 Z';
+    const P = {
+      full: { s: 1, t: 0, product: 'Everyday Crew Tee', sub: 'Slate Blue · size M', icon: tee, size: 'M', verdict: 'Fits you best', vsub: 'Every region inside the range.', g: 0, p: 0 },
+      face: { s: 2.7, t: 564, product: 'Aviator Sunglasses', sub: 'Framed on your face automatically', icon: 'M2 10 L22 10 M4 10 Q4 16 8 16 Q11 16 11 10 M13 10 Q13 16 16 16 Q20 16 20 10', size: '58', verdict: 'Suits your face width', vsub: 'Frame 138 mm, your face 141 mm.', g: 1, p: 0 },
+      torso: { s: 1.6, t: 128, product: 'Everyday Crew Tee', sub: 'Framed on your torso automatically', icon: tee, size: 'M', verdict: 'Fits you best', vsub: 'Chest and waist inside the range.', g: 0, p: 0 },
+      legs: { s: 1.4, t: -187, product: 'Relaxed Chino', sub: 'Framed on your legs automatically', icon: 'M6 3 L18 3 L20 21 L14 21 L12 10 L10 21 L4 21 Z', size: '32', verdict: 'Fits you best', vsub: 'Waist and inseam inside the range.', g: 0, p: 1 },
+    };
+    const z = this.state.zone, cur = P[z];
+    const hot = '#2f5d50', idle = '#d6d1c6', all = z === 'full';
+    return {
+      camStyle: 'transform: translateY(' + cur.t + 'px) scale(' + cur.s + ')',
+      glassesOp: cur.g, pantsOp: cur.p, shortsOp: 1 - cur.p,
+      product: cur.product, productSub: cur.sub, productIcon: cur.icon,
+      size: cur.size, verdict: cur.verdict, verdictSub: cur.vsub,
+      mz: { face: all || z === 'face' ? hot : idle, torso: all || z === 'torso' ? hot : idle, legs: all || z === 'legs' ? hot : idle },
+      isFace: z === 'face', isTorso: z === 'torso', isLegs: z === 'legs', isFull: all,
+      goFace: () => this.setState({ zone: 'face' }),
+      goTorso: () => this.setState({ zone: 'torso' }),
+      goLegs: () => this.setState({ zone: 'legs' }),
+      goFull: () => this.setState({ zone: 'full' }),
+      fullStyle: 'width: 100%; height: 32px; margin-top: 6px; border-radius: 10px; border: 0; font: 600 12px Inter, system-ui, sans-serif; cursor: pointer; background: ' + (all ? '#2f5d50' : '#f1eee8') + '; color: ' + (all ? '#fff' : '#1d1d1f'),
+      alt: 'Avatar framed on the ' + z,
+    };
+  }
+}
+</script>
+</body>
+</html>

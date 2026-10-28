@@ -106,11 +106,110 @@ export function correspond(head, landmarker) {
   return out;
 }
 
+const MAX_BLEND = 16; // photos the blend shader takes
+
+// Box blur of a w x h float image, in place, radius r, three passes (close to a Gaussian).
+function boxBlur(a, w, h, r) {
+  const tmp = new Float32Array(Math.max(w, h)), k = 1 / (2 * r + 1);
+  const pass = (n, len, at) => {
+    for (let line = 0; line < n; line++) {
+      let s = 0;
+      for (let j = -r; j <= r; j++) s += a[at(line, Math.min(len - 1, Math.max(0, j)))];
+      for (let j = 0; j < len; j++) {
+        tmp[j] = s * k;
+        s += a[at(line, Math.min(len - 1, j + r + 1))] - a[at(line, Math.max(0, j - r))];
+      }
+      for (let j = 0; j < len; j++) a[at(line, j)] = tmp[j];
+    }
+  };
+  for (let i = 0; i < 3; i++) { pass(h, w, (y, x) => y * w + x); pass(w, h, (x, y) => y * w + x); }
+}
+
+const DETAIL_MAX = 2; // the atlas stores detail / DETAIL_MAX in 8 bits
+
+// The photo's skin detail with its colour and shading removed: each skin pixel divided by the mean skin colour around it
+// (linear RGB, about 1/14 of the face height wide). Brows, lips, lids and pores stay; the photo's skin tone, light and
+// shadows go. Returns RGBA bytes: detail / DETAIL_MAX, and the skin mask in alpha.
+function skinDetail({ w, h, mask, lmPx }, rgba) {
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const lut = Float32Array.from({ length: 256 }, (_, v) => lin(v)), n = w * h;
+  const ys = lmPx.map((p) => p.y), r = Math.max(2, Math.round((Math.max(...ys) - Math.min(...ys)) / 14));
+  const m = new Float32Array(n), ch = [0, 1, 2].map(() => new Float32Array(n));
+  for (let p = 0; p < n; p++) {
+    if (mask[p] !== FACE_SKIN && mask[p] !== BODY_SKIN) continue;
+    m[p] = 1;
+    for (let c = 0; c < 3; c++) ch[c][p] = lut[rgba[p * 4 + c]];
+  }
+  const out = new Uint8ClampedArray(n * 4), mb = m.slice();
+  boxBlur(mb, w, h, r);
+  for (let c = 0; c < 3; c++) {
+    const b = ch[c].slice();
+    boxBlur(b, w, h, r);
+    for (let p = 0; p < n; p++) if (m[p]) out[p * 4 + c] = (255 * ch[c][p] * mb[p]) / Math.max(1e-6, b[p]) / DETAIL_MAX;
+  }
+  for (let p = 0; p < n; p++) out[p * 4 + 3] = m[p] * 255;
+  return out;
+}
+
+// A lit skin material for the face: the measured skin colour (skinHex, the same as the body) everywhere, times the
+// photos' skin detail (skinDetail). The detail of every photo is mixed by how directly the photo sees the spot (the
+// cosine to the 4th power). Below the chin the detail fades out, so the neck meets the body with no seam. Reads the
+// fusedPos and fusedNrm attributes. The mixing comes from sweep-spike, where it gave
+// about 20% less colour error than one photo per triangle, and no seams.
+function blendMaterial({ views, points: F }, res, skinHex, k = 4) {
+  const chinY = F[152][1], faceH = F[10][1] - F[152][1]; // landmarks 10 and 152: top of the forehead and the chin
+  const n = Math.min(views.length, MAX_BLEND), cols = 4, rows = Math.ceil(n / cols);
+  const cw = Math.max(...res.slice(0, n).map((r) => r.w)), ch = Math.max(...res.slice(0, n).map((r) => r.h));
+  const atlas = Object.assign(document.createElement('canvas'), { width: cols * cw, height: rows * ch }), g = atlas.getContext('2d');
+  for (let i = 0; i < n; i++) { // each photo's detail fills its cell
+    const { w, h, rgba } = res[i]; // the pixels analyse.js already read: a second read of the canvas is slow
+    const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
+    c.getContext('2d').putImageData(new ImageData(skinDetail(res[i], rgba), w, h), 0, 0);
+    g.drawImage(c, (i % cols) * cw, Math.floor(i / cols) * ch, cw, ch);
+  }
+  const tex = new THREE.CanvasTexture(atlas); // raw values, no colour space
+  // Fused frame -> normalised photo coordinates (y down): the inverse of each view's similarity transform.
+  const mats = views.slice(0, n).map(({ T }, i) => {
+    const r0 = [0, 1, 2].map((j) => T.R[j][0] / (T.s * res[i].w)), r1 = [0, 1, 2].map((j) => -T.R[j][1] / (T.s * res[i].h));
+    const o = (r) => -(r[0] * T.t[0] + r[1] * T.t[1] + r[2] * T.t[2]);
+    return new THREE.Matrix4().set(...r0, o(r0), ...r1, o(r1), 0, 0, 0, 0, 0, 0, 0, 1);
+  });
+  const cams = views.slice(0, n).map((v) => new THREE.Vector3(...v.camDir));
+  while (mats.length < MAX_BLEND) mats.push(new THREE.Matrix4());
+  while (cams.length < MAX_BLEND) cams.push(new THREE.Vector3());
+  const m = new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.65 });
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { uAtlas: { value: tex }, uV: { value: mats }, uC: { value: cams }, uChin: { value: new THREE.Vector2(chinY - 0.2 * faceH, chinY) }, uN: { value: n }, uCols: { value: cols }, uRows: { value: rows }, uK: { value: k } });
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 fusedPos; attribute vec3 fusedNrm; varying vec3 vFP; varying vec3 vFN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFP = fusedPos; vFN = fusedNrm;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform sampler2D uAtlas; uniform mat4 uV[${MAX_BLEND}]; uniform vec3 uC[${MAX_BLEND}]; uniform vec2 uChin; uniform int uN; uniform float uCols, uRows, uK;
+varying vec3 vFP; varying vec3 vFN;`)
+      .replace('#include <map_fragment>', `{
+  vec3 fnrm = normalize(vFN), acc = vec3(0.0); float ws = 0.0;
+  for (int i = 0; i < ${MAX_BLEND}; i++) {
+    if (i >= uN) break;
+    vec4 q = uV[i] * vec4(vFP, 1.0);
+    float c = dot(fnrm, uC[i]);
+    if (c < 0.2 || q.x < 0.0 || q.x > 1.0 || q.y < 0.0 || q.y > 1.0) continue;
+    float w = pow(c, uK) * smoothstep(0.2, 0.4, c), col = mod(float(i), uCols), row = floor(float(i) / uCols);
+    vec4 s = texture2D(uAtlas, vec2((col + q.x) / uCols, 1.0 - (row + q.y) / uRows));
+    acc += w * s.rgb * ${DETAIL_MAX.toFixed(1)}; ws += w * s.a; // s.rgb is already scaled by s.a at mask edges
+  }
+  if (ws > 1e-4) diffuseColor.rgb *= mix(vec3(1.0), acc / ws, smoothstep(0.0, 0.05, ws) * smoothstep(uChin.x, uChin.y, vFP.y));
+}`);
+  };
+  return m;
+}
+
 // Everything below is in the fused photo frame (pixels, y up, z toward the camera); the caller scales it.
 // deform: optional (point in the MakeHuman frame) -> point in the output frame (the measured body). Without it,
 // the head stays in the photo frame on its own; with it, the whole body is built and the head sits on it.
 // tint: optional (output point) -> [r, g, b] factor for the skin colour, or null to leave the skin as it is (fit map).
-export function buildTwin({ head, corr, res, fused, skinHex, mmPerPx, photos, deform, tint }) {
+// blend: mix every photo by how directly it sees each spot (see blendMaterial), instead of one photo per triangle.
+export function buildTwin({ head, corr, res, fused, skinHex, mmPerPx, photos, deform, tint, blend = true }) {
   const F = fused.points, views = fused.views, mm = 1 / mmPerPx;
   const lmIdx = [...corr.keys()], src = lmIdx.map((i) => v3(head.pos, corr.get(i)));
   const T = similarity(src, lmIdx.map((i) => F[i]));
@@ -157,28 +256,36 @@ export function buildTwin({ head, corr, res, fused, skinHex, mmPerPx, photos, de
 
   // Output positions: the photo frame, or back to the MakeHuman frame and onto the measured body.
   const outHead = Array.from({ length: nv }, (_, v) => (!deform ? v3(pos, v)
-    : deform(head.seam.has(v) ? v3(head.body.pos, head.toBody[v]) : unapply(T, v3(pos, v)))));
+    : head.seam.has(v) ? deform(v3(head.body.pos, head.toBody[v]), head.toBody[v]) : deform(unapply(T, v3(pos, v)))));
   const outOf = (p) => (deform ? deform(unapply(T, p)) : p);
 
   // Face texturing: each triangle from the photo that sees it best, where that photo shows skin there.
   // fromBody: the body vertex each output vertex comes from, so a caller can skin the twin with the body's weights.
-  const vn = normals(pos, head.idx), groups = [[], [], [], []], uvs = [[], [], [], []], fromBody = [[], [], [], []];
+  // One group per photo, then the last group (index np) for the plain skin tone.
+  const np = views.length, mk = () => Array.from({ length: np + 1 }, () => []);
+  // fp, fn: each output vertex in the fused frame, for the blend shader (the output frame may be the body's).
+  const vn = normals(pos, head.idx), groups = mk(), uvs = mk(), fromBody = mk(), fp = mk(), fn = mk();
   let photoTris = 0;
   for (let t = 0; t < head.idx.length; t += 3) {
     const tri = [head.idx[t], head.idx[t + 1], head.idx[t + 2]];
     const nrm = [0, 1, 2].map((k) => tri.reduce((s, i) => s + vn[i * 3 + k], 0) / 3), [v, d] = bestView(nrm);
     const ctr = [0, 1, 2].map((k) => tri.reduce((s, i) => s + pos[i * 3 + k], 0) / 3), lab = label(v, project(v, ctr));
-    const g = d > 0.2 && (lab === FACE_SKIN || lab === BODY_SKIN) ? v : 3;
-    if (g < 3) photoTris++;
-    for (const i of tri) { groups[g].push(...outHead[i]); fromBody[g].push(head.toBody[i]); const uv = g < 3 ? project(g, v3(pos, i)) : [0, 0]; uvs[g].push(uv[0], 1 - uv[1]); }
+    const g = d > 0.2 && (lab === FACE_SKIN || lab === BODY_SKIN) ? v : np;
+    if (g < np) photoTris++;
+    for (const i of tri) {
+      groups[g].push(...outHead[i]); fromBody[g].push(head.toBody[i]); fp[g].push(...v3(pos, i)); fn[g].push(...v3(vn, i));
+      const uv = g < np ? project(g, v3(pos, i)) : [0, 0]; uvs[g].push(uv[0], 1 - uv[1]);
+    }
   }
   if (deform) { // the rest of the body, in the skin tone
     const bp = head.body.pos, cache = new Map(), at = (i) => { if (!cache.has(i)) cache.set(i, deform(v3(bp, i), i)); return cache.get(i); };
-    for (const i of head.body.restIdx) { groups[3].push(...at(i)); uvs[3].push(0, 0); fromBody[3].push(i); }
+    for (const i of head.body.restIdx) { groups[np].push(...at(i)); uvs[np].push(0, 0); fromBody[np].push(i); fp[np].push(0, 0, 0); fn[np].push(0, 0, 1); }
   }
   const skinGeo = new THREE.BufferGeometry(), allPos = groups.flat(), allUv = uvs.flat();
   skinGeo.setAttribute('position', new THREE.Float32BufferAttribute(allPos, 3));
   skinGeo.setAttribute('uv', new THREE.Float32BufferAttribute(allUv, 2));
+  skinGeo.setAttribute('fusedPos', new THREE.Float32BufferAttribute(fp.flat(), 3));
+  skinGeo.setAttribute('fusedNrm', new THREE.Float32BufferAttribute(fn.flat(), 3));
   let start = 0;
   groups.forEach((g, i) => { skinGeo.addGroup(start, g.length / 3, i); start += g.length / 3; });
   // Smooth shading across the per-view split: average normals by position.
@@ -192,7 +299,8 @@ export function buildTwin({ head, corr, res, fused, skinHex, mmPerPx, photos, de
     skinGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   }
   const tex = photos.map((p) => { const t = new THREE.CanvasTexture(p); t.colorSpace = THREE.SRGBColorSpace; return t; });
-  const mats = [...tex.map((t) => new THREE.MeshStandardMaterial({ map: t, roughness: 0.65 })), new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.65, vertexColors: !!tint })];
+  const photoMats = blend ? Array(np).fill(blendMaterial(fused, res, skinHex)) : tex.map((t) => new THREE.MeshStandardMaterial({ map: t, roughness: 0.65 }));
+  const mats = [...photoMats, new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.65, vertexColors: !!tint })];
   const group = new THREE.Group();
   group.add(new THREE.Mesh(skinGeo, mats));
   for (const e of eyes) { // eyes take the front photo

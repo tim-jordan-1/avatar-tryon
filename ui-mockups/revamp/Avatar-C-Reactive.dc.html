@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Avatar that looks at you and reacts</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.fig{transform-box:view-box;transform-origin:100px 505px;animation:sway 7.5s ease-in-out infinite}
+.fig.good{animation:hop .9s ease-out 1}
+.fig.tight{animation:shrug 1s ease-in-out 1}
+.fig.new{animation:lean 1.4s ease-in-out 1}
+@keyframes sway{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-3px) rotate(-1deg)}75%{transform:translateX(3px) rotate(1deg)}}
+@keyframes hop{0%{transform:translateY(0)}20%{transform:translateY(4px) scale(1.01,.98)}45%{transform:translateY(-16px)}70%{transform:translateY(0)}85%{transform:translateY(2px)}100%{transform:translateY(0)}}
+@keyframes shrug{0%,100%{transform:translateY(0)}35%,65%{transform:translateY(-4px) rotate(-1deg)}}
+@keyframes lean{0%,100%{transform:rotate(0)}30%,75%{transform:rotate(2.5deg) translateY(-2px)}}
+.torso{transform-box:view-box;transform-origin:100px 272px;animation:breathe 3.4s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.012,1.018)}}
+.head{transform-box:view-box;transform-origin:100px 108px;transition:transform .25s ease-out}
+.iris{transition:transform .12s ease-out}
+.lid{transform-box:fill-box;transform-origin:50% 0;animation:blink 4.1s infinite}
+@keyframes blink{0%,90%,100%{transform:scaleY(0)}94%{transform:scaleY(1)}}
+.mouth,.brow{transition:d .3s ease}
+.bubble{transition:opacity .25s ease,transform .25s ease}
+.react{flex:1;height:44px;border-radius:12px;border:1px solid #dcd8cf;background:#fff;color:#1d1d1f;font:600 13px Inter,system-ui,sans-serif;cursor:pointer}
+.react:hover{border-color:#2f5d50}
+@media (prefers-reduced-motion: reduce){.fig,.fig.good,.fig.tight,.fig.new,.torso{animation:none}.head,.iris{transition:none}}
+</style>
+</helmet>
+<div style="width: 400px; height: 860px; position: relative; overflow: hidden; background: radial-gradient(110% 70% at 50% 40%, #fbfaf7 0%, #efece5 70%, #e6e2d9 100%); color: #1d1d1f; font-family: Inter, system-ui, sans-serif">
+  <div style="position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; border-radius: 18px; background: rgba(255,255,255,.8); border: 1px solid #e3e0da; z-index: 2">
+    <div style="flex: 1; min-width: 0">
+      <div style="font-size: 15px; font-weight: 600">Everyday Crew Tee</div>
+      <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5f5d58; margin-top: 2px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #6a5ad8"></span>Slate Blue · size M</div>
+    </div>
+    <button type="button" style="height: 44px; padding: 0 16px; border-radius: 12px; border: 0; background: #1d1d1f; color: #fff; font: 600 14px Inter, system-ui, sans-serif">Read page</button>
+  </div>
+
+  <div onMouseMove="{{track}}" onMouseLeave="{{reset}}" style="position: absolute; top: 84px; left: 0; right: 0; height: 560px; display: flex; justify-content: center; cursor: crosshair">
+    <svg viewBox="0 0 200 520" width="250" height="560" role="img" aria-label="Avatar whose eyes and head follow your pointer">
+      <defs>
+        <linearGradient id="skin" x1="0" x2="1"><stop offset="0" stop-color="#dba07a"></stop><stop offset=".6" stop-color="#c98a62"></stop><stop offset="1" stop-color="#a86d4a"></stop></linearGradient>
+        <linearGradient id="tee" x1="0" x2="1"><stop offset="0" stop-color="#7a68e4"></stop><stop offset=".55" stop-color="#6150cc"></stop><stop offset="1" stop-color="#4436a0"></stop></linearGradient>
+        <linearGradient id="short" x1="0" x2="1"><stop offset="0" stop-color="#46536d"></stop><stop offset=".6" stop-color="#36425a"></stop><stop offset="1" stop-color="#262f42"></stop></linearGradient>
+      </defs>
+      <ellipse cx="100" cy="508" rx="56" ry="7" fill="#000" opacity=".14"></ellipse>
+      <g class="{{figCls}}">
+        <path fill="url(#skin)" d="M74 340 L72 420 Q71 450 77 480 L91 480 Q94 450 95 420 L98 342 Z"></path>
+        <path fill="url(#skin)" d="M126 340 L128 420 Q129 450 123 480 L109 480 Q106 450 105 420 L102 342 Z"></path>
+        <path fill="#fbfbfa" stroke="#d8d6d0" stroke-width=".8" d="M74 476 Q70 498 64 503 L97 505 Q98 490 93 476 Z"></path>
+        <path fill="#fbfbfa" stroke="#d8d6d0" stroke-width=".8" d="M126 476 Q130 498 136 503 L103 505 Q102 490 107 476 Z"></path>
+        <path fill="#8d939b" d="M63 502 L98 504 L98 508 L62 506 Z"></path>
+        <path fill="#8d939b" d="M137 502 L102 504 L102 508 L138 506 Z"></path>
+        <path fill="url(#short)" d="M66 268 L134 268 L140 352 Q122 356 103 352 L100 304 L97 352 Q78 356 60 352 Z"></path>
+        <path fill="#252e40" d="M66 265 L134 265 L135 278 L65 278 Z"></path>
+        <path d="M97 278 Q95 290 92 297 M103 278 Q105 290 108 297" stroke="#ededed" stroke-width="1.6" fill="none" stroke-linecap="round"></path>
+        <path d="M64 281 L61 348 M136 281 L139 348" stroke="#e9e9e9" stroke-width="1.3" opacity=".75"></path>
+        <path d="M86 300 Q92 318 90 336 M114 300 Q108 318 110 336" stroke="#1a2130" stroke-width="1.2" fill="none" opacity=".55"></path>
+        <path d="M47 176 Q42 210 44 240 Q46 270 51 296" stroke="#c48660" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="51" cy="302" rx="7.5" ry="10" fill="#bf805a"></ellipse>
+        <path d="M153 176 Q158 210 156 240 Q154 270 149 296" stroke="#b97a55" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="149" cy="302" rx="7.5" ry="10" fill="#b0724e"></ellipse>
+        <g class="torso">
+          <path fill="#b97a55" d="M90 98 L110 98 L112 130 L88 130 Z"></path>
+          <path fill="url(#tee)" d="M88 122 Q100 132 112 122 L140 130 Q152 134 158 150 L164 186 L146 192 L140 168 L138 272 Q100 280 62 272 L60 168 L54 192 L36 186 L42 150 Q48 134 60 130 Z"></path>
+          <path d="M88 122 Q100 134 112 122" stroke="#3a2e8a" stroke-width="3" fill="none"></path>
+          <path d="M76 200 Q82 230 78 262 M124 200 Q118 230 122 262" stroke="#352a80" opacity=".35" fill="none" stroke-width="1.5"></path>
+        </g>
+        <g class="head" style="{{headStyle}}">
+          <ellipse cx="73" cy="76" rx="5" ry="8" fill="#c08259"></ellipse>
+          <ellipse cx="127" cy="76" rx="5" ry="8" fill="#b37550"></ellipse>
+          <ellipse cx="100" cy="72" rx="27" ry="33" fill="url(#skin)"></ellipse>
+          <path fill="#2b1d16" d="M72 76 C68 44 84 32 102 32 C124 32 134 46 128 76 C126 62 120 54 108 51 C98 57 84 55 76 60 C74 64 73 70 72 76 Z"></path>
+          <ellipse cx="89" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse>
+          <ellipse cx="111" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse>
+          <g class="iris" style="{{irisStyle}}"><circle cx="89" cy="73" r="2.6" fill="#3a2418"></circle><circle cx="111" cy="73" r="2.6" fill="#3a2418"></circle><circle cx="90" cy="72" r=".8" fill="#fff"></circle><circle cx="112" cy="72" r=".8" fill="#fff"></circle></g>
+          <ellipse class="lid" cx="89" cy="71" rx="6" ry="5" fill="#c48660"></ellipse>
+          <ellipse class="lid" cx="111" cy="71" rx="6" ry="5" fill="#c48660"></ellipse>
+          <path class="brow" d="{{face.browL}}" stroke="#2b1d16" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+          <path class="brow" d="{{face.browR}}" stroke="#2b1d16" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+          <path d="M100 76 Q97 86 100 88 Q103 88.5 105 87" stroke="#9a5f3e" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+          <path class="mouth" d="{{face.mouth}}" stroke="#7d3a30" stroke-width="2" fill="{{face.fill}}" stroke-linecap="round" stroke-linejoin="round"></path>
+        </g>
+      </g>
+    </svg>
+    <div class="bubble" style="{{bubbleStyle}}">{{bubble}}</div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 16px; background: #fff; border-top: 1px solid #e3e0da; border-radius: 24px 24px 0 0; box-sizing: border-box">
+    <div style="font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #5f5d58">Preview a reaction</div>
+    <div style="display: flex; gap: 8px; margin-top: 10px">
+      <button type="button" class="react" onClick="{{playGood}}">Good fit</button>
+      <button type="button" class="react" onClick="{{playTight}}">Too tight</button>
+      <button type="button" class="react" onClick="{{playNew}}">New item</button>
+    </div>
+    <p style="margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: #5f5d58">Move your pointer over the stage. The eyes lead, the head follows, and the avatar glances back to centre when you leave.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":400,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { nx: 0, ny: 0, react: '' }; }
+  componentWillUnmount() { clearTimeout(this.t); }
+  play(kind) {
+    clearTimeout(this.t);
+    this.setState({ react: '' }, () => {
+      this.setState({ react: kind });
+      this.t = setTimeout(() => this.setState({ react: '' }), 1800);
+    });
+  }
+  renderVals() {
+    const { nx, ny, react } = this.state;
+    const faces = {
+      '': { mouth: 'M92 95 Q100 99 108 95', fill: 'none', browL: 'M83 64 Q89 61.5 95 63', browR: 'M105 63 Q111 61.5 117 64' },
+      good: { mouth: 'M89 92 Q100 106 111 92 Q100 96.5 89 92 Z', fill: '#6e2b26', browL: 'M83 62 Q89 58.5 95 61', browR: 'M105 61 Q111 58.5 117 62' },
+      tight: { mouth: 'M91 97 Q95 94 100 97 Q105 100 109 96', fill: 'none', browL: 'M84 61 Q90 63 95 65.5', browR: 'M105 65.5 Q110 63 116 61' },
+      new: { mouth: 'M97 96 Q100 92.5 103 96 Q100 99.5 97 96 Z', fill: '#6e2b26', browL: 'M83 59.5 Q89 55.5 95 58.5', browR: 'M105 60 Q111 56.5 117 60' },
+    };
+    const bubbles = { good: 'Nice fit!', tight: 'Bit snug here…', new: 'Ooh, what is this?' };
+    return {
+      face: faces[react],
+      figCls: react ? 'fig ' + react : 'fig',
+      headStyle: 'transform: rotate(' + (nx * 7).toFixed(2) + 'deg) translate(' + (nx * 3).toFixed(2) + 'px,' + (ny * 2).toFixed(2) + 'px)',
+      irisStyle: 'transform: translate(' + (nx * 2.6).toFixed(2) + 'px,' + (ny * 1.6).toFixed(2) + 'px)',
+      bubble: bubbles[react] || '',
+      bubbleStyle: 'position: absolute; top: 24px; left: 232px; padding: 10px 14px; border-radius: 16px 16px 16px 4px; background: #1d1d1f; color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; pointer-events: none; opacity: ' + (react ? 1 : 0) + '; transform: translateY(' + (react ? 0 : 6) + 'px)',
+      track: (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const cx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+        const cy = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1.2));
+        this.setState({ nx: cx, ny: cy });
+      },
+      reset: () => this.setState({ nx: 0, ny: 0 }),
+      playGood: () => this.play('good'),
+      playTight: () => this.play('tight'),
+      playNew: () => this.play('new'),
+    };
+  }
+}
+</script>
+</body>
+</html>

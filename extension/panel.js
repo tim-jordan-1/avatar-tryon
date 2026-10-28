@@ -62,13 +62,13 @@ function cssColour(name) {
 }
 
 let tryon = null, me = null, product = null, chart = null, rec = null;
-let mode = 'idle', view = 'three'; // the pressed motion and view buttons; a rebuilt avatar gets them again
-let photos = null, face = null; // photos: three canvases [front, left, right]; face: the analysis plus the photos, or null
+let mode = 'idle', view = 'three', zone = 'full'; // the pressed motion, view and body-map buttons; a rebuilt avatar gets them again
+let photos = null, face = null; // photos: canvases [front, left, right, then any more sweep views]; face: the analysis plus the photos, or null
 
 async function buildAvatar() {
   tryon?.dispose();
   tryon = null;
-  $('motion').hidden = $('views').hidden = false;
+  $('motion').hidden = $('views').hidden = $('bodymap').hidden = false;
   $('stage-msg').hidden = true;
   status('Building your avatar…', 'busy');
   // face: { ok, res, fused, mmPerPx, hair, skin, photos, landmarker (IMAGE mode) } or null. The measured skin colour replaces the default.
@@ -78,12 +78,13 @@ async function buildAvatar() {
     $('view').querySelector('canvas')?.remove();
     status(`Could not build the avatar: ${e.message}`, 'bad');
     $('stage-msg').hidden = false;
-    $('motion').hidden = $('views').hidden = true; // nothing to move or turn
+    $('motion').hidden = $('views').hidden = $('bodymap').hidden = true; // nothing to move or turn
     return;
   }
   window.__tryon = tryon; // for checks from devtools
   tryon.setMode(mode);
   tryon.view(view);
+  tryon.frame(zone);
   if (chart) applySize();
   status(product ? '' : 'Avatar ready.');
 }
@@ -155,6 +156,8 @@ $('read').addEventListener('click', async () => {
     }
     renderSizes();
     showFit(true);
+    press($('bodymap'), $('bodymap').querySelector('[data-zone=torso]'));
+    setZone('torso'); // a new top: frame the torso (the panel tries on tops only)
     equip(applySize());
     document.querySelector('#chips .chip.rec')?.classList.add('pulse');
     status('');
@@ -198,6 +201,8 @@ const pressGroup = (group, key, apply) => group.addEventListener('click', (e) =>
 });
 pressGroup($('motion'), 'motion', (m) => { mode = m; tryon?.setMode(m); });
 pressGroup($('views'), 'view', (v) => { view = v; tryon?.view(v); });
+const setZone = (z) => { zone = z; $('bodymap').dataset.zone = z; tryon?.frame(z); };
+pressGroup($('bodymap'), 'zone', setZone);
 
 // --- the equip moment: a short reward when the shopper puts a size on (Read page or a size chip), never on a rebuild ---
 // Effects: the card animation, the sparkles, the rim light and the avatar's try-on sequence. Off by default for reduced motion.
@@ -284,7 +289,7 @@ function equip(rows) {
   mode = 'idle';
   press($('motion'), $('motion').querySelector('[data-motion=idle]'));
   tryon.setMode('idle');
-  const ms = tryon.celebrate?.({ calm: reduce.matches }) || 1800;
+  const ms = tryon.celebrate?.({ calm: reduce.matches, tight: tierOf(rows) === 'tight' }) || 1800; // a tight fit gets a shrug, not a hop
   tryon.setRim?.(true);
   clearTimeout(rimTimer);
   rimTimer = setTimeout(() => tryon?.setRim?.(false), ms);
@@ -318,7 +323,7 @@ function snapTo(toFull) {
   setH(full ? s.full : s.peek);
   grab.setAttribute('aria-expanded', full);
   $('grab-label').textContent = full ? 'Collapse panel' : 'Expand panel';
-  for (const c of [$('views'), $('motion'), $('fx'), $('view')]) c.inert = full; // covered by the sheet
+  for (const c of [$('views'), $('motion'), $('bodymap'), $('fx'), $('view')]) c.inert = full; // covered by the sheet
 }
 grab.addEventListener('pointerdown', (e) => { drag = { y: e.clientY, h: sheetH, moved: false }; grab.setPointerCapture(e.pointerId); sheet.classList.add('dragging'); });
 grab.addEventListener('pointermove', (e) => {
@@ -393,7 +398,7 @@ async function applyStoredPhotos(urls) {
   storedKey = JSON.stringify(urls ?? null);
   photos = face = null;
   showThumbs(urls);
-  if (urls?.length === 3) {
+  if (urls?.length >= 3) {
     try {
       photoStatus('Reading your photos…');
       const m = await loadModels();

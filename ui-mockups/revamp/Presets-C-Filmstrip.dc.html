@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Camera presets as a live filmstrip</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.cam{transform-origin:50% 280px;transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.fig{transform-box:view-box;transform-origin:100px 505px;animation:sway 7.5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-2px) rotate(-.8deg)}75%{transform:translateX(2px) rotate(.8deg)}}
+.head{transform-box:view-box;transform-origin:100px 108px;animation:look 11s ease-in-out infinite}
+@keyframes look{0%,10%{transform:rotate(0)}18%,30%{transform:rotate(-5deg) translateX(-3px)}38%,50%{transform:rotate(0)}58%,70%{transform:rotate(4deg) translateX(3px)}78%,100%{transform:rotate(0)}}
+.lid{transform-box:fill-box;transform-origin:50% 0;animation:blink 4.3s infinite}
+@keyframes blink{0%,90%,100%{transform:scaleY(0)}94%{transform:scaleY(1)}}
+.thumb{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;border:0;background:transparent;color:#a3a3a8;font:500 12px Inter,system-ui,sans-serif;cursor:pointer}
+.thumb .frame{width:80px;height:100px;border-radius:14px;overflow:hidden;background:#1d1f24;border:2px solid transparent}
+.thumb.on{color:#fff}
+.thumb.on .frame{border-color:#7fc3a9}
+.badge{position:absolute;top:-8px;right:-4px;height:20px;padding:0 7px;border-radius:999px;background:#7fc3a9;color:#0f2a21;font:700 10px/20px Inter,system-ui,sans-serif}
+select{height:44px;padding:0 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#1d1f24;color:#ececee;font:500 13px Inter,system-ui,sans-serif}
+@media (prefers-reduced-motion: reduce){.fig,.head{animation:none}.cam{transition:none}}
+</style>
+</helmet>
+<div style="width: 400px; height: 860px; position: relative; overflow: hidden; background: #0e0f11; color: #ececee; font-family: Inter, system-ui, sans-serif">
+  <div style="position: absolute; top: 0; left: 0; right: 0; height: 560px; overflow: hidden; background: radial-gradient(120% 70% at 50% 45%, #25272d 0%, #131417 65%, #0e0f11 100%)">
+    <div class="cam" style="{{camStyle}}">
+      <div style="height: 560px; display: flex; justify-content: center">
+        <svg viewBox="0 0 200 520" width="181" height="470" style="margin-top: 70px" role="img" aria-label="{{alt}}">
+          <defs>
+            <linearGradient id="skin" x1="0" x2="1"><stop offset="0" stop-color="#dba07a"></stop><stop offset=".6" stop-color="#c98a62"></stop><stop offset="1" stop-color="#a86d4a"></stop></linearGradient>
+            <linearGradient id="tee" x1="0" x2="1"><stop offset="0" stop-color="#7a68e4"></stop><stop offset=".55" stop-color="#6150cc"></stop><stop offset="1" stop-color="#4436a0"></stop></linearGradient>
+            <linearGradient id="short" x1="0" x2="1"><stop offset="0" stop-color="#46536d"></stop><stop offset="1" stop-color="#262f42"></stop></linearGradient>
+            <linearGradient id="chino" x1="0" x2="1"><stop offset="0" stop-color="#c8b28a"></stop><stop offset=".6" stop-color="#b59d73"></stop><stop offset="1" stop-color="#97805a"></stop></linearGradient>
+            <g id="avatar" class="fig">
+              <path fill="url(#skin)" d="M74 340 L72 420 Q71 450 77 480 L91 480 Q94 450 95 420 L98 342 Z M126 340 L128 420 Q129 450 123 480 L109 480 Q106 450 105 420 L102 342 Z"></path>
+              <path fill="#f2f2f0" d="M74 476 Q70 498 64 503 L97 505 Q98 490 93 476 Z M126 476 Q130 498 136 503 L103 505 Q102 490 107 476 Z"></path>
+              <path fill="#8d939b" d="M63 502 L98 504 L98 508 L62 506 Z M137 502 L102 504 L102 508 L138 506 Z"></path>
+              <g opacity="{{shortsOp}}">
+                <path fill="url(#short)" d="M66 268 L134 268 L140 352 Q122 356 103 352 L100 304 L97 352 Q78 356 60 352 Z"></path>
+                <path fill="#252e40" d="M66 265 L134 265 L135 278 L65 278 Z"></path>
+                <path d="M97 278 Q95 290 92 297 M103 278 Q105 290 108 297 M64 281 L61 348 M136 281 L139 348" stroke="#ededed" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+              </g>
+              <g opacity="{{pantsOp}}">
+                <path fill="url(#chino)" d="M66 266 L134 266 L136 330 L131 478 L107 480 L101 304 L99 304 L93 480 L69 478 L64 330 Z"></path>
+                <path fill="#a38b63" d="M66 261 L134 261 L134 274 L66 274 Z M68 468 L93 470 L93 480 L69 478 Z M132 468 L107 470 L107 480 L131 478 Z"></path>
+                <path d="M84 300 L82 466 M116 300 L118 466 M71 276 Q79 289 77 305 M129 276 Q121 289 123 305" stroke="#7f6a49" stroke-width="1.1" fill="none" opacity=".6"></path>
+              </g>
+              <path d="M47 176 Q42 210 44 240 Q46 270 51 296" stroke="#c48660" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="51" cy="302" rx="7.5" ry="10" fill="#bf805a"></ellipse>
+              <path d="M153 176 Q158 210 156 240 Q154 270 149 296" stroke="#b97a55" stroke-width="15" fill="none" stroke-linecap="round"></path><ellipse cx="149" cy="302" rx="7.5" ry="10" fill="#b0724e"></ellipse>
+              <path fill="#b97a55" d="M90 98 L110 98 L112 130 L88 130 Z"></path>
+              <path fill="url(#tee)" d="M88 122 Q100 132 112 122 L140 130 Q152 134 158 150 L164 186 L146 192 L140 168 L138 272 Q100 280 62 272 L60 168 L54 192 L36 186 L42 150 Q48 134 60 130 Z"></path>
+              <path d="M88 122 Q100 134 112 122" stroke="#3a2e8a" stroke-width="3" fill="none"></path>
+              <g class="head">
+                <ellipse cx="73" cy="76" rx="5" ry="8" fill="#c08259"></ellipse>
+                <ellipse cx="127" cy="76" rx="5" ry="8" fill="#b37550"></ellipse>
+                <ellipse cx="100" cy="72" rx="27" ry="33" fill="url(#skin)"></ellipse>
+                <path fill="#2b1d16" d="M72 76 C68 44 84 32 102 32 C124 32 134 46 128 76 C126 62 120 54 108 51 C98 57 84 55 76 60 C74 64 73 70 72 76 Z"></path>
+                <ellipse cx="89" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse><ellipse cx="111" cy="73" rx="5.2" ry="3.4" fill="#f7f3ee"></ellipse>
+                <circle cx="89" cy="73" r="2.6" fill="#3a2418"></circle><circle cx="111" cy="73" r="2.6" fill="#3a2418"></circle>
+                <ellipse class="lid" cx="89" cy="71" rx="6" ry="5" fill="#c48660"></ellipse><ellipse class="lid" cx="111" cy="71" rx="6" ry="5" fill="#c48660"></ellipse>
+                <path d="M83 63.5 Q89 61 95 62.5 M105 62.5 Q111 61 117 63.5" stroke="#2b1d16" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+                <path d="M100 76 Q97 86 100 88 Q103 88.5 105 87" stroke="#9a5f3e" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+                <path d="M91 94 Q100 100 109 94" stroke="#7d3a30" stroke-width="2" fill="none" stroke-linecap="round"></path>
+                <g opacity="{{glassesOp}}">
+                  <path fill="#14181f" d="M79 67 h19 v6 q0 8 -9.5 8 q-9.5 0 -9.5 -8 Z M102 67 h19 v6 q0 8 -9.5 8 q-9.5 0 -9.5 -8 Z"></path>
+                  <path d="M98 69.5 Q100 68 102 69.5 M79 68 L73 71 M121 68 L127 71 M79 67 h19 M102 67 h19" stroke="#c9a34a" stroke-width="1.3" fill="none"></path>
+                </g>
+              </g>
+            </g>
+          </defs>
+          <ellipse cx="100" cy="508" rx="56" ry="7" fill="#000" opacity=".45"></ellipse>
+          <use href="#avatar"></use>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 10px">
+    <label style="position: absolute; width: 1px; height: 1px; overflow: hidden" for="pp">Product on the open page</label>
+    <select id="pp" value="{{product}}" onChange="{{pickProduct}}" style="flex: 1">
+      <option value="tee">Page: Everyday Crew Tee</option>
+      <option value="glasses">Page: Aviator Sunglasses</option>
+      <option value="chino">Page: Relaxed Chino</option>
+    </select>
+    <button type="button" style="height: 44px; padding: 0 14px; border-radius: 12px; border: 0; background: #f4f1ea; color: #111; font: 600 14px Inter, system-ui, sans-serif">Read page</button>
+  </div>
+
+  <div style="position: absolute; top: 72px; left: 50%; transform: translateX(-50%); height: 30px; padding: 0 12px; border-radius: 999px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.08); font-size: 12px; line-height: 30px; color: #d4d4d8; white-space: nowrap">{{camNote}}</div>
+
+  <div style="position: absolute; top: 572px; left: 0; right: 0; display: flex; justify-content: center; gap: 12px" role="group" aria-label="Camera preset">
+    <sc-for list="{{thumbs}}" as="t" hint-placeholder-count="4">
+      <button type="button" class="{{t.cls}}" onClick="{{t.pick}}" aria-pressed="{{t.on}}">
+        <span class="frame"><svg viewBox="{{t.vb}}" width="80" height="100" aria-hidden="true"><use href="#avatar"></use></svg></span>
+        <sc-if value="{{t.auto}}" hint-placeholder-val="{{false}}"><span class="badge">Auto</span></sc-if>
+        {{t.label}}
+      </button>
+    </sc-for>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 130px; padding: 16px; border-radius: 24px 24px 0 0; background: #17181b; border-top: 1px solid rgba(255,255,255,.08); box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 14px">
+      <div style="font-size: 40px; font-weight: 700; line-height: 1">{{size}}</div>
+      <div style="flex: 1"><div style="font-size: 14px; font-weight: 600">{{verdict}}</div><div style="font-size: 12px; color: #a3a3a8">{{verdictSub}}</div></div>
+    </div>
+    <div style="display: flex; gap: 6px; margin-top: 12px; font-size: 12px; color: #a3a3a8">Drag the stage to orbit · double-tap to reset</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":400,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { product: 'glasses', override: null }; }
+  renderVals() {
+    const cams = {
+      full: { label: 'Full', s: 1, t: 0, vb: '-60 -10 320 540' },
+      face: { label: 'Face', s: 2.9, t: 440, vb: '58 24 84 105' },
+      torso: { label: 'Torso', s: 1.65, t: 76, vb: '20 100 160 200' },
+      legs: { label: 'Legs', s: 1.4, t: -192, vb: '30 256 140 175' },
+    };
+    const products = {
+      tee: { auto: 'torso', size: 'M', verdict: 'Fits you best', vsub: 'Chest and waist inside the range.', g: 0, p: 0 },
+      glasses: { auto: 'face', size: '58', verdict: 'Suits your face width', vsub: 'Frame 138 mm, your face 141 mm.', g: 1, p: 0 },
+      chino: { auto: 'legs', size: '32', verdict: 'Fits you best', vsub: 'Waist and inseam inside the range.', g: 0, p: 1 },
+    };
+    const pr = products[this.state.product];
+    const zone = this.state.override || pr.auto, cam = cams[zone];
+    const thumbs = Object.keys(cams).map((k) => ({
+      label: cams[k].label, vb: cams[k].vb, on: k === zone, auto: k === pr.auto,
+      cls: k === zone ? 'thumb on' : 'thumb',
+      pick: () => this.setState({ override: k === pr.auto ? null : k }),
+    }));
+    return {
+      thumbs,
+      product: this.state.product,
+      pickProduct: (e) => this.setState({ product: e.target.value, override: null }),
+      camStyle: 'transform: translateY(' + cam.t + 'px) scale(' + cam.s + ')',
+      camNote: this.state.override ? cam.label + ' view · you picked this' : cam.label + ' view · picked for this product',
+      glassesOp: pr.g, pantsOp: pr.p, shortsOp: 1 - pr.p,
+      size: pr.size, verdict: pr.verdict, verdictSub: pr.vsub,
+      alt: 'Avatar framed on the ' + zone,
+    };
+  }
+}
+</script>
+</body>
+</html>

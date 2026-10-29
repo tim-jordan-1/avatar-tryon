@@ -12,7 +12,9 @@ The tests need Node 20 or later. They use the built-in `node:test` runner.
 node --test fit-map/
 ```
 
-The tests read four real men's charts from `fixtures/`: Nike tops, Nike bottoms, ASOS and Lululemon. They compare the parsed ranges with values read by hand from the tables. They also test both table layouts, the four fit results, and the size pick for a man who is 178 cm tall, with chest 100, waist 86 and hip 100.
+The tests read five real charts from `fixtures/`: the men's charts of Nike tops, Nike bottoms, ASOS and Lululemon, and the women's chart of Cotton On. They compare the parsed ranges with values read by hand from the tables. They also test both table layouts, the table types, the AU size aliases, the widening of single values and the four fit results. The last test is the size pick for a man who is 178 cm tall, with chest 100, waist 86 and hip 100.
+
+`fixtures/cottonon.md` is the output of `../extension/extract.js` for `fixtures/cottonon.html`, the size guide of a Cotton On product page. If you change how the extractor writes tables, make the file again. Run `extractProduct` on `cottonon.html` in a browser, and join its tables with a blank line.
 
 ## Use it
 
@@ -32,10 +34,22 @@ The parser accepts these forms:
 
 - Sizes as columns (Nike, Lululemon) or sizes as rows (ASOS). If the header row contains no measurement name, the parser takes the sizes to be columns.
 - Ranges such as `96 - 104` and `35"-36"`, and single values such as `86`. A single value gives a range where the low and high values are the same.
-- Inches, which the parser converts to cm and rounds to 0.1 cm. A cell is in inches if its header says "Inches" or the cell contains `"`. Fractions such as `33 1/2"` are accepted. If a table gives the same measurement in inches and in cm, the parser uses the cm column.
+- One cell with all the measurements of a size, such as `Bust: 74 Waist: 60 Seat: 83` (Cotton On). The parser makes one column for each name.
+- Inches, which the parser converts to cm and rounds to 0.1 cm. If its header says "Inches", "IN" or "(in)" and not "cm", a cell is in inches. A cell that contains `"` is also in inches. Fractions such as `33 1/2"` are accepted. If a table gives the same measurement in inches and in cm, the parser uses the cm column.
 - The prefix "To Fit", and open bounds such as `< 170` and `> 190`.
-- These measurement names: chest or bust, waist, hip or hips, inside leg or inseam, and height. The parser ignores rows and columns with other names, for example neck.
+- These measurement names: chest or bust, waist, hip, hips or seat, inside leg or inseam, and height. The parser ignores rows and columns with other names, for example neck or thigh.
 - Extra size rows, such as the Lululemon alpha sizes. The parser stores them in `aliases`, for example waist size `32` has the alias `M`.
+- The Australian size, from a column or row named "AU" or "AUS" (Cotton On "AU / UK", H&M "AU"). The parser stores it in `aliases`, with "AU" in front. Cotton On size S has the alias `AU 10`. If the AU column is the first column, it holds the size labels, and it gives no alias (Princess Polly).
+
+## Table types
+
+A shop page can have bra charts, kids' charts and inch tables with no unit. These charts look like adult charts to the parser. A wrong chart is worse than no chart, so the parser stops with an error for these tables:
+
+- A bra chart: a size such as `8A` or `32DD`, or the word "bra" or "cup" in the header row.
+- A kids' chart: the word "age", "months", "years", "girls" or "boys" in the header row or in a size.
+- A value outside the adult range of its region. The ranges are 60 to 180 cm for chest, 45 to 180 cm for waist and 60 to 190 cm for hip. They are 50 to 110 cm for inside leg and 140 to 220 cm for height. This rule finds inch tables with no unit and charts for babies.
+
+The side panel then tries the next table on the page.
 
 ## Thresholds
 
@@ -56,7 +70,7 @@ The 2 cm limit is `SNUG_CM` in `fit.js`. Tape error is about 1 cm, and many char
 
 - The code handles body-measurement charts only. It does not handle charts of garment measurements, such as a flat chest width or a garment length.
 - The code does not know about stretch, fabric or cut. A stretch top that is snug can fit well.
-- A chart with single values gives no range. For example, ASOS jeans size 34 is 86 cm. A body that is 1 cm away from the value is then snug or loose, not good.
+- A chart with single values gives no range. For example, ASOS jeans size 34 is 86 cm. A body that is 1 cm away from the value is then snug or loose, not good. `widen` in `fit.js` spreads each value to the midpoints with the next sizes: Cotton On size S, bust 89 cm, becomes 86.5 to 91.5 cm. The first and last sizes go half a step past their value. If every size has one value for a region and the values rise from size to size, `widen` changes that region. Otherwise it keeps the region as it is. The side panel widens every chart that it reads.
 - For height, "tight" means the garment is probably short, and "loose" means it is probably long.
 - Loose has no upper limit. A size that is 10 cm too large shows the same result as one that is 1 cm too large. The `delta` value still shows the difference.
 - The parser does not read unicode fractions such as `23¼`. Only the ASOS hat table, which is not used, has them.
@@ -68,4 +82,5 @@ The 2 cm limit is `SNUG_CM` in `fit.js`. Tape error is about 1 cm, and many char
 | `sizechart.js` | Reads markdown tables and makes a chart in cm. |
 | `fit.js` | Fit report per region, size pick, thresholds and legend. |
 | `fit.test.mjs` | The tests. |
-| `fixtures/*.md` | The size tables from the Nike, ASOS and Lululemon pages, copied from the scraped pages. |
+| `fixtures/*.md` | The size tables from the Nike, ASOS, Lululemon and Cotton On pages, copied from the scraped pages. |
+| `fixtures/cottonon.html` | The Cotton On size guide markup that `cottonon.md` comes from. |

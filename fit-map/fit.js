@@ -12,6 +12,21 @@ export const LEGEND = [
 
 const round = (v) => Math.round(v * 10) / 10;
 
+// One value per size (Cotton On "Bust: 89", ASOS jeans "86") leaves no room inside a size: a body 1 cm off is snug or
+// loose. Spread each value to the midpoints with the next sizes, and the end sizes by half a step. Only for a region
+// where every size has one value, rising from size to size.
+export function widen(chart) {
+  const sizes = chart.sizes.map((s) => ({ ...s, ranges: { ...s.ranges } }));
+  for (const r of new Set(sizes.flatMap((s) => Object.keys(s.ranges)))) {
+    const has = sizes.filter((s) => s.ranges[r]), v = has.map((s) => s.ranges[r][0]);
+    if (has.length < 2 || has.some((s, i) => s.ranges[r][1] !== v[i] || (i && v[i] <= v[i - 1]))) continue;
+    has.forEach((s, i) => {
+      s.ranges[r] = [round(i ? (v[i - 1] + v[i]) / 2 : v[0] - (v[1] - v[0]) / 2), round(i < v.length - 1 ? (v[i] + v[i + 1]) / 2 : v[i] + (v[i] - v[i - 1]) / 2)];
+    });
+  }
+  return { ...chart, sizes };
+}
+
 export function fitReport(body, chart, sizeLabel) {
   const size = chart.sizes.find((s) => s.label === sizeLabel);
   if (!size) throw new Error(`no size ${sizeLabel} in ${chart.brand} ${chart.garment}`);

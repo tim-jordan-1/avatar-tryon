@@ -2,7 +2,7 @@
 import { createTryOn } from './lib/cloth-spike/tryon.js';
 import { validate } from './lib/avatar-poc/body.js';
 import { parseSizeChart } from './lib/fit-map/sizechart.js';
-import { fitReport, recommendSize } from './lib/fit-map/fit.js';
+import { fitReport, recommendSize, widen } from './lib/fit-map/fit.js';
 import { extractProduct } from './extract.js';
 import { colourFromName } from './colour.js';
 import { photoStore, toDataUrl } from './photo-store.js';
@@ -92,13 +92,25 @@ async function buildAvatar() {
 const bodyOf = (m) => ({ height: m.height, chest: m.chest, waist: m.waist, hip: m.hip, inseam: m.inseam });
 const sentence = (t) => `${t[0].toUpperCase()}${t.slice(1)}.`;
 const sizeChoice = () => document.querySelector('#chips input:checked')?.value;
+// A table row of text cells. Size labels and fabric text come from the shop page: textContent, never innerHTML.
+const textRow = (cells) => { const tr = document.createElement('tr'); for (const c of cells) tr.insertCell().textContent = c; return tr; };
 
 // Size chips for the chart, with the recommended size marked. Keeps the shopper's pick if the chart still has it.
 function renderSizes(keep) {
   rec = recommendSize(bodyOf(me), chart);
-  const labels = chart.sizes.filter((s) => s.ranges.chest).map((s) => s.label);
-  const pick = labels.includes(keep) ? keep : rec.label;
-  $('chips').innerHTML = labels.map((l) => `<label class="chip${l === rec.label ? ' rec' : ''}"><input class="sr" type="radio" name="size" value="${l}"${l === pick ? ' checked' : ''}><span>${l}${l === rec.label ? '<span class="sr"> (recommended)</span>' : ''}</span></label>`).join('');
+  const sizes = chart.sizes.filter((s) => s.ranges.chest);
+  const pick = sizes.some((s) => s.label === keep) ? keep : rec.label;
+  $('chips').replaceChildren(...sizes.map(({ label: l, aliases }) => {
+    const chip = document.createElement('label');
+    chip.className = `chip${l === rec.label ? ' rec' : ''}`;
+    chip.innerHTML = `<input class="sr" type="radio" name="size"${l === pick ? ' checked' : ''}><span>${l === rec.label ? '<span class="sr"> (recommended)</span>' : ''}</span>`;
+    chip.firstChild.value = l;
+    // The Australian size under the label ("AU 10" under S): an Australian shop sells by it.
+    const au = document.createElement('small');
+    au.textContent = aliases?.find((a) => a.startsWith('AU ')) ?? '';
+    chip.lastChild.prepend(l, ...(au.textContent ? [' ', au] : [])); // page text: never innerHTML
+    return chip;
+  }));
 }
 
 function applySize() {
@@ -106,12 +118,14 @@ function applySize() {
   const body = bodyOf(me);
   const rows = fitReport(body, chart, label);
   // Each row: your measurement on a track that spans the size range plus one range width either side.
-  $('fit').querySelector('tbody').innerHTML = rows.map((r) => {
+  const fit = $('fit').querySelector('tbody');
+  fit.innerHTML = rows.map((r) => {
     const span = r.hi - r.lo || 1, min = r.lo - span, pct = (v) => Math.max(0, Math.min(100, ((v - min) / (3 * span)) * 100));
     return `<tr><td class="region"><strong>${r.region}</strong><span class="state"><span class="dot" style="background:${STATUS[r.status]}"></span>${r.status}</span></td>
       <td><div class="track" aria-hidden="true"><span class="band" style="left:${pct(r.lo)}%;width:${pct(r.hi) - pct(r.lo)}%"></span><span class="you" style="left:${pct(r.body)}%;background:${STATUS[r.status]}"></span></div>
-      <div class="range num"><span>You ${r.body}</span><span>${label} ${r.lo}–${r.hi} cm</span></div></td></tr>`;
+      <div class="range num"><span>You ${r.body}</span><span class="size-range"></span></div></td></tr>`;
   }).join('');
+  fit.querySelectorAll('.size-range').forEach((s, i) => { s.textContent = `${label} ${rows[i].lo}–${rows[i].hi} cm`; }); // page text: never innerHTML
   // The verdict: the size large, one sentence, and a flag when the pick is not the recommendation.
   const picked = label === rec.label;
   $('big').textContent = label;
@@ -123,11 +137,11 @@ function applySize() {
   const fabric = { composition: product.material || '100% cotton', gsm: product.gsm || 180, construction: product.construction };
   const garmentChest = size.ranges.chest[1] + EASE_CM;
   const fp = tryon.setGarment({ fabric, garmentChest, color: cssColour(product.color) ?? '#7d8794' });
-  $('fabric').querySelector('tbody').innerHTML = [
+  $('fabric').querySelector('tbody').replaceChildren(...[
     ['Composition', fabric.composition], ['Construction', fabric.construction],
     ['Weight', `${fabric.gsm} g/m²${product.gsm ? '' : ' (not on the page; default)'}`], ['Garment chest', `${garmentChest} cm (size top ${size.ranges.chest[1]} + ${EASE_CM} ease)`],
     ['Stretch', `${Math.round(fp.stretchStiffness)} N/m`], ['Bend', `${fp.bendStiffness.toExponential(0)} N·m`],
-  ].map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  ].map(textRow));
   return rows;
 }
 
@@ -146,7 +160,7 @@ $('read').addEventListener('click', async () => {
     for (const md of product.tables) {
       try {
         const c = parseSizeChart(md, { brand: new URL(product.url || location.href).hostname, garment: 'tops' });
-        if (c.sizes.some((s) => s.ranges.chest)) { chart = c; break; }
+        if (c.sizes.some((s) => s.ranges.chest)) { chart = widen(c); break; }
       } catch { /* not a size chart */ }
     }
     if (!chart) {

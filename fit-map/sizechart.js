@@ -1,11 +1,17 @@
 // Shop size charts (markdown tables) to a normalised body-measurement chart in cm. Pure JS, no dependencies.
 
 const REGIONS = [
-  ['chest', /chest|bust/i], ['waist', /waist/i], ['hip', /hip/i],
+  ['chest', /chest|bust/i], ['waist', /waist/i], ['hip', /hip|seat/i],
   ['inseam', /inside leg|inseam/i], ['height', /height/i],
 ];
 // "Waist Sizes" (Lululemon) names a size label row, not a measurement.
 const regionOf = (text) => (/size/i.test(text) ? null : REGIONS.find(([, re]) => re.test(text))?.[0] ?? null);
+// The Australian size: "AU / UK" (Cotton On), "AU" (H&M), "Size (AUS)". An Australian shop sells by it.
+const AU = /\baus?\b/i;
+// Adult body sizes in cm. A value outside them is an inch table with no unit, a kids' chart or a typo.
+const ADULT_CM = { chest: [60, 180], waist: [45, 180], hip: [60, 190], inseam: [50, 110], height: [140, 220] };
+// Bra (8A, 32DD) and kids' (Age, 0-9 Months, 11-12 girls) charts use the same body names, but the avatar is an adult.
+const NOT_ADULT = /\bage\b|month|year|\byrs\b|\bgirls?\b|\bboys?\b|\bbra\b|\bcup\b|^\d{1,3} ?[a-k]{1,3}$/i;
 
 // Tables in page order: [{heading, rows: [[cell, ...], ...]}]. heading is the last markdown heading
 // above the table, or a one-cell title row at its top (ASOS puts the table name there).
@@ -42,6 +48,20 @@ export function parseRange(cell, inchColumn = false) {
 
 const transpose = (rows) => rows[0].map((_, i) => rows.map((r) => r[i] ?? ''));
 
+// One cell can hold every measurement, "Bust: 74 Waist: 60 Seat: 83" (Cotton On). Give each its own column, headed
+// with its name and the old header ("Bust CM"), so the unit in that header still counts.
+const PAIR = /([a-z][a-z ]*?):\s*(\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?)/gi;
+function unpack(rows) {
+  const pairs = (c = '') => [...c.matchAll(PAIR)].map((m) => [m[1].trim(), m[2]]);
+  const j = rows[1]?.findIndex((c) => pairs(c).length > 1) ?? -1;
+  if (j < 0) return rows;
+  const keys = pairs(rows[1][j]).map(([k]) => k);
+  return rows.map((r, i) => {
+    const got = new Map(pairs(r[j]));
+    return [...r.slice(0, j), ...keys.map((k) => (i ? got.get(k) ?? '' : `${k} ${r[j] ?? ''}`)), ...r.slice(j + 1)];
+  });
+}
+
 // options.table picks the table: an index, or a keyword found in its heading (default 0).
 export function parseSizeChart(md, { brand, garment, table = 0 } = {}) {
   const tables = parseMarkdownTables(md);
@@ -49,19 +69,21 @@ export function parseSizeChart(md, { brand, garment, table = 0 } = {}) {
     : tables.find((x) => x.heading.toLowerCase().includes(table.toLowerCase()));
   if (!t) throw new Error(`no table "${table}" in the ${brand} page`);
 
+  const unpacked = unpack(t.rows);
   // No measurement name in the header row means sizes run across it: transpose so sizes are rows.
   // (Testing the first column instead trips on notes like ASOS's "These are inside leg measurements".)
-  const sizesAreColumns = !t.rows[0].some(regionOf);
-  const rows = sizesAreColumns ? transpose(t.rows) : t.rows;
+  const sizesAreColumns = !unpacked[0].some(regionOf);
+  const rows = sizesAreColumns ? transpose(unpacked) : unpacked;
   const h = rows.findIndex((r) => r.some(regionOf));
   if (h < 0) throw new Error(`table "${t.heading}" has no body measurements`);
   const [head, ...body] = rows.slice(h);
 
-  const cols = head.map((text, i) => ({ i, key: regionOf(text), cm: /\bcm\b/i.test(text), inch: /inch/i.test(text) }));
+  // "IN" and "(in)" mean inches too (Cotton On, Princess Polly), unless the header also says cm.
+  const cols = head.map((text, i) => ({ i, key: regionOf(text), cm: /\bcm\b/i.test(text), inch: /inch|\bin\b/i.test(text) && !/\bcm\b/i.test(text) }));
   // ASOS gives each measurement in inches and in cm: keep the cm column.
   const cmKeys = new Set(cols.filter((c) => c.key && c.cm).map((c) => c.key));
   const measured = cols.filter((c) => c.key && (c.cm || !cmKeys.has(c.key)));
-  const aliasCols = cols.filter((c) => c.i > 0 && !c.key && /size/i.test(head[c.i])).map((c) => c.i);
+  const aliasCols = cols.filter((c) => c.i > 0 && !c.key && (/size/i.test(head[c.i]) || AU.test(head[c.i]))).map((c) => c.i);
 
   const sizes = body.map((r) => {
     const ranges = {};
@@ -69,9 +91,18 @@ export function parseSizeChart(md, { brand, garment, table = 0 } = {}) {
       const v = parseRange(r[c.i] ?? '', c.inch);
       if (v) ranges[c.key] = v;
     }
-    const aliases = aliasCols.map((i) => r[i]).filter((a) => a && a !== '-');
+    // "AU 10", not "10": the panel shows the Australian size on the size chips.
+    const aliases = aliasCols.filter((i) => r[i] && r[i] !== '-').map((i) => (AU.test(head[i]) ? `AU ${r[i]}` : r[i]));
     return { label: r[0], ...(aliases.length && { aliases }), ranges };
   }).filter((s) => s.label && Object.keys(s.ranges).length);
 
+  // These charts parse like adult charts, and a wrong chart is worse than none.
+  if ([...head, ...sizes.map((s) => s.label)].some((c) => NOT_ADULT.test(c))) throw new Error(`table "${t.heading}" is a bra or kids' chart`);
+  for (const s of sizes) {
+    for (const [k, v] of Object.entries(s.ranges)) {
+      const [lo, hi] = ADULT_CM[k], x = v.find((n) => Number.isFinite(n) && (n < lo || n > hi));
+      if (x !== undefined) throw new Error(`table "${t.heading}": size ${s.label} has ${k} ${x} cm, which is not an adult size`);
+    }
+  }
   return { brand, garment, kind: 'body', unit: 'cm', sizes };
 }

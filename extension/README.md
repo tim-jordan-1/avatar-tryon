@@ -35,7 +35,7 @@ Everything runs on your computer. Your measurements stay in Chrome's extension s
 
 The avatar fills the top of the panel. When it stands idle, its eyes and head follow the pointer over the stage. When the pointer leaves, it looks ahead again. A bar at the top shows the product name, its colour, the fabric and the **Read page** button. A small status message shows under the bar while the panel works, and stays there if something fails.
 
-A sheet at the bottom holds the size choice. It shows the selected size in large type and one sentence about how it fits. The recommended size has a green dot. Under the sizes are three tabs:
+A sheet at the bottom holds the size choice. It shows the selected size in large type and one sentence about how it fits. The recommended size has a green dot. If the size chart gives Australian sizes, each size chip shows the AU size under its label, for example "AU 10" under S. Under the sizes are three tabs:
 
 - **Fit**: one row per body region. Each row shows your measurement as a dot on the range of the selected size, and says tight, snug, good or loose. Under the rows is the fabric that the cloth simulation uses.
 - **Me**: your measurements and sex.
@@ -74,7 +74,7 @@ The panel can read any page, but the try-on needs a body-measurement size chart 
 | `photo-store.js` | Saves and loads the photos: front, left side, right side, then the other sweep photos. Uses `chrome.storage.local`, or `localStorage` as a plain page. |
 | `manifest.json` | Manifest V3: side panel, `scripting`, `activeTab`, `storage`; `wasm-unsafe-eval` for the physics engine. |
 | `background.js` | Opens the side panel when you click the toolbar button. |
-| `extract.js` | Runs inside the product page: reads JSON-LD Product data, the material and gsm from the text, and every table as markdown. |
+| `extract.js` | Runs inside the product page: reads JSON-LD Product data, the material and gsm from the text, and every table as markdown. It drops screen-reader text from table cells and writes a "\|" in a cell as "/". |
 | `panel.html`, `panel.js` | The side panel. Uses `../cloth-spike/tryon.js` (avatar and cloth), `../fit-map/` (size charts) and `../avatar-poc/body.js` (measurement checks). |
 | `build.mjs` | Builds `build/`: copies these files and the shared modules, downloads the libraries, and rewrites their imports to the local copies. |
 | `icons/` | The toolbar and store icons (16, 32, 48 and 128 px) and their SVG source. |
@@ -104,6 +104,8 @@ Checked as a plain page in a browser, not as a loaded extension:
 - If the avatar cannot be built (for example, a model file fails to load), the panel says why instead of staying empty. The fit table still works.
 - Face photos, as a plain page: the three samples in `twin-spike/samples/` give the analysis table (short dark brown hair, skin tone), and the built panel makes no request outside `localhost`. A fake camera (a canvas stream cycling through the samples) takes the front photo and both sides, in either side order, and puts each in the right slot.
 - `node --test extension/` tests the yaw, the steady-pose state machine, the hints and the side labelling.
+- With the Cotton On size guide (`../fit-map/fixtures/cottonon.html`) in place of the example page, the panel reads 9 sizes. For the default man, it recommends L. Each size chip shows the AU size under the letter, from "AU 2" under 4XS to "AU 18" under 2XL. A size label or a JSON-LD material that contains HTML shows as plain text, and its markup does not run.
+- With the rows of an H&M men's tee size guide from hm.com/en_au, the chips show H&M's AU sizes, such as "AU 38R-40R" under M. These chips are wider, so the 7 sizes take 3 rows at a panel width of 360 px.
 
 Not checked here: the extension-only code paths (`chrome.scripting.executeScript` on the tab, `chrome.storage`, opening the side panel, `chrome.tabs.create` for the capture tab), the extension's CSP with MediaPipe, and the real camera (permission prompt, the hold timing, the sharpness limit `MAX_JITTER`, the yaw window on a real turning head). Your manual test in Chrome covers them.
 

@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "clipped-overflow-container",
+        "value": "*",
+        "files": [
+          "extension/panel.html"
+        ],
+        "createdAt": "2026-10-29T00:54:51.465Z",
+        "reason": "Claude: body is the full-viewport side-panel shell (height 100%, overflow hidden); its positioned children fill the viewport and nothing must escape it. Rule existed before this change."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "extension/panel.html"
+        ],
+        "createdAt": "2026-10-29T01:01:47.174Z",
+        "reason": "Claude: flagged the fabric <details>, which has no padding of its own while its children inset their text. Measured in the built panel: summary text 16 px from the top and 14 px from the left, last table row text 11 px from the bottom. Rule existed before this change."
+      }
+    ]
+  }
+}

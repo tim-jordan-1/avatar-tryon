@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseMarkdownTables, parseSizeChart, parseRange } from './sizechart.js';
-import { fitReport, recommendSize, LEGEND } from './fit.js';
+import { fitReport, recommendSize, widen, LEGEND } from './fit.js';
 
 const fixture = (name) => readFileSync(new URL(`./fixtures/${name}.md`, import.meta.url), 'utf8');
 const ranges = (chart, label) => chart.sizes.find((s) => s.label === label).ranges;
@@ -62,6 +62,39 @@ test('both orientations give the same chart; unknown rows are ignored', () => {
   assert.deepEqual(a.sizes[0].ranges, { chest: [90, 100], waist: [80, 84] });
 });
 
+test('Cotton On: all measurements in one cell, "AU | UK" header, Seat, IN and (IN) headers', () => {
+  // cottonon.md is what extension/extract.js makes of fixtures/cottonon.html in Chrome: the cm table, then the inch table.
+  const cm = parseSizeChart(fixture('cottonon'), { brand: 'Cotton On', garment: 'tops' });
+  const inch = parseSizeChart(fixture('cottonon'), { brand: 'Cotton On', garment: 'tops', table: 1 });
+  assert.deepEqual(cm.sizes.map((s) => s.label), ['4XS', '3XS', '2XS', 'XS', 'S', 'M', 'L', 'XL', '2XL']);
+  assert.deepEqual(ranges(cm, 'S'), { chest: [89, 89], waist: [72, 72], hip: [98, 98] }); // Thigh is no region
+  assert.deepEqual(ranges(inch, 'S'), { chest: [88.9, 88.9], waist: [71.1, 71.1], hip: [97.8, 97.8] }); // 35, 28, 38.5 in
+  const pp = parseSizeChart('| AU | BUST (IN) | WAIST (IN) | HIP (IN) |\n| 10 | 36 | 29 | 39 |', { brand: 'Princess Polly' });
+  assert.deepEqual(ranges(pp, '10'), { chest: [91.4, 91.4], waist: [73.7, 73.7], hip: [99.1, 99.1] });
+});
+
+test('the AU size is an alias: "AU / UK" column (Cotton On), AU row (H&M), but not the label column', () => {
+  const co = parseSizeChart(fixture('cottonon'), { brand: 'Cotton On', garment: 'tops' });
+  assert.deepEqual(co.sizes.map((s) => s.aliases), [2, 4, 6, 8, 10, 12, 14, 16, 18].map((n) => [`AU ${n}`])); // US and EU are no aliases
+  assert.deepEqual(widen(co).sizes.find((s) => s.label === 'S').aliases, ['AU 10']); // the panel widens every chart
+  // Rows from the hm.com/en_au size guide of a women's tee: sizes as columns, with an AU row.
+  const hm = parseSizeChart('| | XXS | S |\n| AU | 4 | 8-10 |\n| EUR | 32 | 36-38 |\n| Chest cm | 75-78 | 82-90 |', { brand: 'H&M' });
+  assert.deepEqual(hm.sizes.map((s) => [s.label, s.aliases]), [['XXS', ['AU 4']], ['S', ['AU 8-10']]]);
+  // Princess Polly: the AU column holds the size labels.
+  assert.equal(parseSizeChart('| AU | BUST (CM) |\n| 10 | 91 |', { brand: 'Princess Polly' }).sizes[0].aliases, undefined);
+});
+
+test('table types: bra, kids and inch tables with no unit are not adult charts', () => {
+  // Rows from cottonon.com/AU/size-guide.html, which has every chart of the shop on one page.
+  const parse = (md) => parseSizeChart(md, { brand: 'Cotton On' });
+  assert.throws(() => parse('| AU | US | EU | BR | UK | Bust |\n| 8A | 30A | 65A | 38A | 30A | 77-79 |\n| 8B | 30B | 65B | 38B | 30B | 79-81 |'), /bra or kids/);
+  assert.throws(() => parse('| Age (years) | AU | US / UK | EU | CM |\n| 11-12 girls | 11-12 | 12 | 150 | Height: 150 Chest: 78 Waist: 65 Hip: 82 |\n| 11-12 boys | 11-12 | 12 | 150 | Height: 150 Chest: 76 Waist: 66 Hip: 78 |'), /bra or kids/);
+  assert.throws(() => parse('| Size | AU | EU | cm kg |\n| TEENY | 00000 | 50 | Height: 50 Weight: 3 |\n| NEWBORN | 0000 | 56 | Height: 56 Weight: 4 |'), /height 50 cm/);
+  assert.throws(() => parse('| Size | Waist (cm) | Height (cm) |\n| 1-2 | 52-54 | 84-92 |\n| 2-3 | 54-55 | 92-100 |'), /height 84 cm/);
+  // The Princess Polly inch table without its "(IN)": a 31 cm bust.
+  assert.throws(() => parse('| AU | BUST | WAIST | HIP |\n| 4 | 31 | 24 | 34 |\n| 6 | 32 | 25 | 35 |'), /chest 31 cm/);
+});
+
 test('cell parsing: To Fit, inch header, fractions, open bounds, junk', () => {
   assert.deepEqual(parseRange('To Fit 38-40', true), [96.5, 101.6]);
   assert.deepEqual(parseRange('33 1/2"'), [85.1, 85.1]);
@@ -92,6 +125,22 @@ test('recommendSize: 178 cm man, chest 100, waist 86, hip 100', () => {
   });
   assert.match(recommendSize(man, CHARTS.nikeTops).reason, /inside/);
   assert.match(recommendSize(man, CHARTS.luluBottoms).reason, /2.2 cm at waist \(tight\)/);
+});
+
+test('widen: one value per size spreads to the midpoints with the next sizes', () => {
+  const single = parseSizeChart(fixture('cottonon'), { brand: 'Cotton On', garment: 'tops' }), wide = widen(single);
+  assert.deepEqual(ranges(wide, 'S'), { chest: [86.5, 91.5], waist: [70, 74.5], hip: [95.5, 100.5] });
+  assert.deepEqual([ranges(wide, '4XS').chest, ranges(wide, '2XL').chest], [[72.5, 75.5], [109.5, 116.5]]); // ends: half a step out
+  // Bust 91, waist 74, hip 100: 2 cm over each single S value is snug, and inside the widened S is good.
+  const woman = { height: 168, chest: 91, waist: 74, hip: 100 };
+  assert.deepEqual(fitReport(woman, single, 'S').map((r) => r.status), ['snug', 'snug', 'snug']);
+  assert.deepEqual(fitReport(woman, wide, 'S').map((r) => r.status), ['good', 'good', 'good']);
+  assert.equal(recommendSize(woman, wide).label, 'S');
+  // Ranges, and values that fall or repeat, stay as they are.
+  assert.deepEqual(widen(CHARTS.nikeTops), CHARTS.nikeTops);
+  const odd = { sizes: [{ label: 'A', ranges: { waist: [90, 90], hip: [100, 100] } }, { label: 'B', ranges: { waist: [86, 86], hip: [100, 100] } }] };
+  assert.deepEqual(widen(odd), odd);
+  assert.deepEqual(ranges(single, 'S').chest, [89, 89], 'the input chart is not changed');
 });
 
 test('recommendSize: priority region breaks a tie', () => {

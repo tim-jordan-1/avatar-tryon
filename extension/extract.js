@@ -38,7 +38,14 @@ export async function extractProduct(doc = document) {
       while (s && !/^H[1-4]$/.test(s.tagName)) s = s.previousElementSibling;
       if (s) heading = text(s); else el = el.parentElement;
     }
-    const rows = [...t.querySelectorAll('tr')].map((r) => `| ${[...r.children].map(text).join(' | ')} |`);
+    // Screen-reader twins ("78 - 84" plus a hidden "78 to 84", Uniqlo) double the numbers; a "|" in a cell ("AU | UK",
+    // Cotton On) splits the markdown row.
+    const cell = (c) => {
+      const k = c.cloneNode(true);
+      k.querySelectorAll('.visuallyhidden, .visually-hidden, .sr-only').forEach((e) => e.remove());
+      return text(k).replace(/\|/g, '/');
+    };
+    const rows = [...t.querySelectorAll('tr')].map((r) => `| ${[...r.children].map(cell).join(' | ')} |`);
     return `${heading ? `## ${heading}\n\n` : ''}${rows.join('\n')}`;
   });
   // H&M has no chart in the page until its size guide opens, and then shows one size range at a time. Its JSON
